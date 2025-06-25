@@ -5,6 +5,7 @@ type flat_ty =
   (* | FlatTyList of flat_ty *)
   | FlatTyArrow of (flat_ty list) * flat_ty
   (* | FlatTyVar of string *)
+[@@deriving show]
 
 let rec is_same_ty tyl1 tyl2 =
   match (tyl1, tyl2) with

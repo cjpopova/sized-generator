@@ -1,3 +1,4 @@
 (library
  (public_name palka_stlc)
+ (preprocess (pps ppx_deriving.show ppx_deriving.ord))
  (wrapped false))
