@@ -16,6 +16,10 @@ to build:
 dune build
 ```
 
+to run:
+```
+dune exec -- palka_stlc
+```
 
 
 to debug:
@@ -27,4 +31,11 @@ let p = Generate.generate_fp (Generators.main) 100 Type.FlatTyInt in PrettyPrint
 ```
 
 Alternatives:
+```
+Debug.debug_mode := true;;
 let p = Generate.generate_fp (Generators.main) 100 (FlatTyArrow ([Type.FlatTyInt], Type.FlatTyInt)) in PrettyPrinter.pretty_print p;;
+```
+
+```
+OCAMLRUNPARAM=b dune exec -- palka_stlc
+```

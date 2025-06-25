@@ -67,10 +67,14 @@ let w_fuel n = w_fuel_base n 0.
 (************************************ GENERATORS ************************************************)
 
 let base_constructor_steps weight (prog : Exp.program) (hole : hole_info) (acc : rule_urn) =
-  (* TODO: sample base type (in this case, just Int) *)
+  (* TODO: improve integer sampling  *)
   match hole.ty_label with
   | FlatTyInt ->
      let vals = [Exp.ValInt 0; Exp.ValInt 1; Exp.ValInt 2; Exp.ValInt (-1); Exp.ValInt 42] in
+     steps_generator prog hole acc
+                     Rules.base_constructor_step weight vals
+  | FlatTyBool ->
+     let vals = [Exp.ValBool true; Exp.ValBool false] in
      steps_generator prog hole acc
                      Rules.base_constructor_step weight vals
   | _ -> acc
@@ -86,7 +90,8 @@ let lambda_steps weight (prog : Exp.program) (hole : hole_info) (acc : rule_urn)
     singleton_generator weight Rules.func_constructor_step prog hole acc
   | _ -> acc
 
-
+let s rule weight =
+  singleton_generator weight rule
 
 let main : t =
   (* fun std_lib_m -> *)
@@ -94,6 +99,7 @@ let main : t =
     base_constructor_steps          ( w_const 2.        );
     var_steps                       ( w_const 2.        );
     lambda_steps                    ( w_fuel_base 2. 1. );
+    s Rules.function_call_step      ( w_fuel 1.         );
     (* std_lib_steps std_lib_m         ( w_const 1.        );
     not_useless_steps               ( w_fuel_base 2. 1. );
     let_insertion_steps             ( w_fuel_depth      );

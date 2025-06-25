@@ -40,3 +40,19 @@ let func_constructor_step (prog : Exp.program) (hole : hole_info) =
   | _ -> fun () ->
          raise (Util.Impossible "function constructor on non-function type")
 
+
+let function_call_step (prog : Exp.program) (hole : hole_info) = (* This step produces a normal function call/application (eg not extensible)*)
+  fun () ->
+  Debug.run (fun () -> Printf.eprintf ("creating function call (fuel=%n)\n") hole.fuel);
+  let n = Int.of_float (sqrt (Float.of_int (Random.int hole.fuel))) + 1 in
+  let tys = List.init n (fun _ -> TypeUtil.random_type (hole.fuel / n) prog) in (* random types for the arguments. these will be smaller than fuel*)
+  let func = prog.new_exp {exp=Exp.Hole;
+                           ty=(FlatTyArrow (tys, hole.ty_label)); (* function : args -> hole_type*)
+                           prev=Some hole.label} in
+  let args = List.map (fun ty -> prog.new_exp {exp=Exp.Hole;
+                                               ty=ty;
+                                               prev=Some hole.label}) tys in
+  let holes = [func] @ args in
+  prog.set_exp hole.label {exp=Exp.App (func, args); ty=hole.ty_label; prev=hole.prev};
+  holes
+

@@ -56,9 +56,9 @@ let generate_exp (steps : Generators.t) (fuel : int) (prog : Exp.program) (e : E
           | Urn.Value v -> v
           | Urn.Nested urn -> sample_lp (urn()))
        with
-         Urn.EmptyUrn -> sample_lp rest
+         Urn.EmptyUrn _ -> sample_lp rest
     )
-    | None -> raise Urn.EmptyUrn in
+    | None -> raise (Urn.EmptyUrn (Format.sprintf "%s" (Type.show_flat_ty hole.ty_label))) in
   (* TODO: backtracking *)
   (* (Urn.sample sample steps) *)
   sample_lp steps ()
@@ -84,4 +84,4 @@ let prog = Exp.make_program ty in
   try
   lp()
   with
-    Urn.EmptyUrn -> (PrettyPrinter.pretty_print prog; raise Urn.EmptyUrn)
+    Urn.EmptyUrn msg -> (PrettyPrinter.pretty_print prog; raise (Urn.EmptyUrn msg))

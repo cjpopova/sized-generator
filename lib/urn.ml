@@ -21,6 +21,7 @@ let empty : 'a nested_urn =
   Urn {size=1; tree=None}
 
 let insert (urn0 : 'a nested_urn) w' a' =
+  if (w' = 0.) then urn0 else (* CJP: do not insert when weight is 0*)
   let Urn {size=size0; tree=tree0} = urn0 in
   match tree0 with
   | None -> Urn {size=1; tree=Some (Leaf (w', a'))}
@@ -40,7 +41,7 @@ let insert_list (urn0 : 'a nested_urn) pairs = ...
  *)
 
 
-exception EmptyUrn
+exception EmptyUrn of string
 
 let rec sample_opt (rand : random_sample) (urn0 : 'a nested_urn) : 'a option =
   let Urn {size=_; tree=tree0} = urn0 in
@@ -65,7 +66,7 @@ let rec sample_opt (rand : random_sample) (urn0 : 'a nested_urn) : 'a option =
 
 and sample (rand : random_sample) (urn : 'a nested_urn) =
   match sample_opt rand urn with
-  | None -> raise EmptyUrn
+  | None -> raise (EmptyUrn "") (* TODO: write informative error message*)
   | Some a -> a
 
 let uninsert_opt (urn0 : 'a nested_urn) : ('a nested_urn * weight * ('a base) * weight) option =
