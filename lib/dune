@@ -1,0 +1,3 @@
+(library
+ (public_name palka_stlc)
+ (wrapped false))
