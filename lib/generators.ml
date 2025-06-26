@@ -17,17 +17,14 @@ let find_vars (prog : Exp.program) (e : Exp.exp_label) =
            if (e == body)
            then [(x, (prog.get_exp rhs).ty)]
            else []
-         (* | Match (scr, _, (fst, rst, body)) ->
-           if (e == body)
-           then let lst_ty = (prog.get_exp scr).ty in
-                match prog.ty.get_ty lst_ty with
-                | TyList ty' -> [(fst, ty'); (rst, lst_ty)]
-                | _ -> raise (Util.Impossible "match scrutinee does not have list type")
-           else []*)
          | Lambda (params, _) -> 
            (match node.ty with
             | FlatTyArrow (ty_params, _) -> List.combine params ty_params
             | _ -> raise (Util.Impossible "lambda does not have arrow type"))
+         | Letrec (func, params, _) -> 
+           (match node.ty with
+            | FlatTyArrow (ty_params, _) -> (func, node.ty) :: List.combine params ty_params
+            | _ -> raise (Util.Impossible "letrec does not have arrow type"))
          | _ -> [] in
       exp_binds @ find_binds ep
   in
@@ -90,8 +87,16 @@ let lambda_steps weight (prog : Exp.program) (hole : hole_info) (acc : rule_urn)
     singleton_generator weight Rules.func_constructor_step prog hole acc
   | _ -> acc
 
+let letrec_steps weight (prog : Exp.program) (hole : hole_info) (acc : rule_urn) =
+  match hole.ty_label with
+  | FlatTyArrow _ ->
+    singleton_generator weight Rules.letrec_constructor_step prog hole acc
+  | _ -> acc
+
 let s rule weight =
   singleton_generator weight rule
+
+(********************************************************)
 
 let main : t =
   (* fun std_lib_m -> *)
@@ -100,6 +105,7 @@ let main : t =
     var_steps                       ( w_const 2.        );
     lambda_steps                    ( w_fuel_base 2. 1. );
     s Rules.function_call_step      ( w_fuel 1.         );
+    letrec_steps                    ( w_fuel_base 2. 1. );
     (* std_lib_steps std_lib_m         ( w_const 1.        );
     not_useless_steps               ( w_fuel_base 2. 1. );
     let_insertion_steps             ( w_fuel_depth      );

@@ -10,12 +10,13 @@ type var = Var.t
 type exp =
   | Hole
   | Var of var
-  | StdLibRef of string
-  | Let of (var * exp_label * exp_label)
-  | Lambda of ((var list) * exp_label)
-  | App of (exp_label * (exp_label list)) (* CJP: Applications renamed from Call*)
   | ValInt of int (* CJP: replace/add datatypes*)
   | ValBool of bool
+  (* | StdLibRef of string *)
+  | Lambda of ((var list) * exp_label)
+  | App of (exp_label * (exp_label list)) (* CJP: Applications renamed from Call*)
+  | Letrec of (var * (var list) * exp_label)
+  | Let of (var * exp_label * exp_label) (* This is the old let, which probably isn't generated anywhere*)
 
   (* expression nodes *)
 type exp_node = {

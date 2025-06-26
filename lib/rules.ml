@@ -40,8 +40,22 @@ let func_constructor_step (prog : Exp.program) (hole : hole_info) =
   | _ -> fun () ->
          raise (Util.Impossible "function constructor on non-function type")
 
+(* Creates a letrec (named function with recursive call)*)
+let letrec_constructor_step (prog : Exp.program) (hole : hole_info) =
+  let set exp = prog.set_exp hole.label {exp=exp; ty=hole.ty_label; prev=hole.prev} in
+  match hole.ty_label with
+  | FlatTyArrow (ty_params, ty') ->
+     fun () ->
+     Debug.run (fun () -> Printf.eprintf ("creating letrec\n"));
+     let xs = List.map (fun _ -> prog.new_var ()) ty_params in
+     let body = prog.new_exp {exp=Exp.Hole; ty=ty'; prev=Some hole.label} in
+     set (Exp.Letrec (prog.new_var (), xs, body));
+     [body]
+  | _ -> fun () ->
+         raise (Util.Impossible "letrec constructor on non-function type")
 
-let function_call_step (prog : Exp.program) (hole : hole_info) = (* This step produces a normal function call/application (eg not extensible)*)
+(* Creates function call/application *)
+let function_call_step (prog : Exp.program) (hole : hole_info) = 
   fun () ->
   Debug.run (fun () -> Printf.eprintf ("creating function call (fuel=%n)\n") hole.fuel);
   let n = Int.of_float (sqrt (Float.of_int (Random.int hole.fuel))) + 1 in
