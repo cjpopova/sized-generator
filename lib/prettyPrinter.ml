@@ -17,7 +17,7 @@ let rec print_lst (print : 'a -> int -> string list -> string list) (sep : strin
     | [] -> acc
     | z :: zs -> print z tab_i (sep @ (print_lst print sep zs tab_i acc))
 
-let pretty_print (prog : Exp.program) : unit =
+let pprint_prog (ppf : Format.formatter) (prog : Exp.program) : unit =
   let print_bnd (x : Exp.var) (_ : int) (acc : string list) =
     (* TODO: type information *)
     (Exp.Var.to_string x) :: acc
@@ -45,13 +45,16 @@ let pretty_print (prog : Exp.program) : unit =
       let print_es = print_lst print_e ["\n";tab tab_i1] in
       let args = "\n"::(tab tab_i1)::(print_es args tab_i1 (")"::acc)) in
       "(call"::"\n"::(tab tab_i1)::(print_e func tab_i1 args)
-    | Letrec (func, params, body) -> (*  (letrec ([f (λ (params) body)]) f)  *) (* TODO: this is probably off*)
+    | Letrec (func, params, body) -> (*  (letrec ([f (λ (params) body)]) f)  *)
       let print_bnds = print_lst print_bnd [" "] in
       let tail = ")]) "::(Exp.Var.to_string func)::")"::acc in
       let body = "\n"::(tab tab_i1)::(print_e body (tab_i+1) tail) in
       let lambda = "(letrec (["::(Exp.Var.to_string func)::" (λ "::"("::(print_bnds params tab_i (")"::body)) in
-      lambda
+      lambda in
+    Format.fprintf ppf "%s" (String.concat "" (print_e prog.head 0 []))
       
-  in
-  print_string (String.concat "" (print_e prog.head 0 []));
+
+let pretty_print (prog : Exp.program) : unit =
+  print_string("\n");
+  pprint_prog Format.std_formatter prog;
   print_string("\n")
