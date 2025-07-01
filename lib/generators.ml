@@ -1,5 +1,5 @@
 type hole_info = Rules.hole_info
-type rule_urn = (unit -> Exp.exp_label list) Urn.t
+type rule_urn = Exp.rule_urn
 type t = ((Exp.program -> hole_info -> rule_urn -> rule_urn) list)
 
 (************************************ HELPERS ************************************************)
@@ -77,7 +77,7 @@ let base_constructor_steps weight (prog : Exp.program) (hole : hole_info) (acc :
   | _ -> acc
 
   let var_steps weight (prog : Exp.program) (hole : hole_info) (acc : rule_urn) =
-  let ref_vars = List.filter (fun b -> Type.is_same_ty (snd b) hole.ty_label) hole.vars in
+  let ref_vars = List.filter (fun b -> TypeUtil.is_same_ty (snd b) hole.ty_label) hole.vars in
   steps_generator prog hole acc
                   Rules.var_step weight ref_vars
 

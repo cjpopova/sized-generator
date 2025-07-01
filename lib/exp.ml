@@ -6,6 +6,8 @@ type exp_label = ExpLabel.t
 module Var = Key.Make (struct let x="x" end)
 type var = Var.t
 
+type rule_urn = (unit -> exp_label list) Urn.t
+
 (* expression datatype <- this is the grammar we can generate. notice that subexpressions are labelled and not pure exps*)
 type exp =
   | Hole
@@ -23,6 +25,7 @@ type exp_node = {
     exp : exp;
     ty : Type.flat_ty; (* CJP: this used to be a type label*)
     prev : exp_label option;
+    choices : rule_urn (* each node will store a list of possible choices. this might be useful for backtracking *)
   }
 
 type program = {
@@ -79,7 +82,7 @@ let make_program ty =
     let rename e' = if e' == a then b else e' in
 
     let node = get_exp e in
-    let set e' = set_exp e {exp=e'; ty=node.ty; prev=node.prev} in
+    let set e' = set_exp e {exp=e'; ty=node.ty; prev=node.prev; choices=Urn.empty} in
     match node.exp with
     | Let (x, rhs, body) ->
        set (Let (x, rename rhs, rename body))
@@ -89,7 +92,7 @@ let make_program ty =
       set (App (rename func, (List.map rename args)))
     | _ -> () in
 
-  let head = new_exp {exp=Hole; ty=ty; prev=None} in
+  let head = new_exp {exp=Hole; ty=ty; prev=None; choices=Urn.empty} in
 
   {
     head = head;
