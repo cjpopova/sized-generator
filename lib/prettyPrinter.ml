@@ -50,7 +50,9 @@ let pprint_prog (ppf : Format.formatter) (prog : Exp.program) : unit =
       let tail = ")]) "::(Exp.Var.to_string func)::")"::acc in
       let body = "\n"::(tab tab_i1)::(print_e body (tab_i+1) tail) in
       let lambda = "(letrec (["::(Exp.Var.to_string func)::" (λ "::"("::(print_bnds params tab_i (")"::body)) in
-      lambda in
+      lambda
+    | ExtRef (name, _) ->
+      name :: acc in
     Format.fprintf ppf "%s" (String.concat "" (print_e prog.head 0 []))
       
 

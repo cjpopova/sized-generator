@@ -19,6 +19,7 @@ type exp =
   | App of (exp_label * (exp_label list)) (* CJP: Applications renamed from Call*)
   | Letrec of (var * (var list) * exp_label)
   | Let of (var * exp_label * exp_label) (* This is the old let, which probably isn't generated anywhere*)
+  | ExtRef of string * Type.flat_ty
 
   (* expression nodes *)
 type exp_node = {

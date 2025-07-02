@@ -40,9 +40,7 @@ let generate_exp (steps : Generators.t) (fuel : int) (prog : Exp.program) (e : E
 let rec generate (steps : Generators.t) (fuel : int) (prog : Exp.program) (e : Exp.exp_label) =
   let holes = generate_exp steps fuel prog e in (* one step *)
   let new_fuel = if fuel > 0 then fuel - 1 else 0 in
-  List.iter (fun hole -> generate steps new_fuel prog hole) holes
-
-  (* now we need error handling for when there are no choices available (boolean return) *)
+  List.iter (fun hole -> generate steps new_fuel prog hole) holes (* recurse over new holes returned by `generate_exp` *)
 
 let generate_fp (steps : Generators.t) (size : int) (ty : Type.flat_ty) : Exp.program = (* this is the entry point*)
   let prog = Exp.make_program ty in

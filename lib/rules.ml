@@ -72,3 +72,9 @@ let function_call_step (prog : Exp.program) (hole : hole_info) =
   prog.set_exp hole.label {exp=Exp.App (func, args); ty=hole.ty_label; prev=hole.prev; choices=Urn.empty};
   holes
 
+let std_lib_step (prog : Exp.program) (hole : hole_info) (name, ty) =
+  fun () ->
+  Debug.run (fun () -> Printf.eprintf ("creating std_lib reference\n"));
+  prog.set_exp hole.label {exp=ExtRef (name, ty); ty=hole.ty_label; prev=hole.prev; choices=Urn.empty}; (* using var as a placeholder for std_lib_refs*)
+  []
+
