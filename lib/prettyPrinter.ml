@@ -29,7 +29,6 @@ let pprint_prog (ppf : Format.formatter) (prog : Exp.program) : unit =
     | Var x -> (Exp.Var.to_string x) :: acc
     | ValInt i -> (Int.to_string i) :: acc
     | ValBool b -> (Bool.to_string b) :: acc
-    (*| StdLibRef str -> str :: acc *)
     | Let (x, rhs, body) ->
       let body = "\n"::(tab tab_i)::"in"
                  ::"\n"::(tab tab_i1)::(print_e body tab_i1 acc) in
@@ -52,7 +51,15 @@ let pprint_prog (ppf : Format.formatter) (prog : Exp.program) : unit =
       let lambda = "(letrec (["::(Exp.Var.to_string func)::" (λ "::"("::(print_bnds params tab_i (")"::body)) in
       lambda
     | ExtRef (name, _) ->
-      name :: acc in
+      name :: acc
+    | Case (e, _, clauses) -> (* (match e [(D x ...) e_1)] ... ) *)
+      let print_bnds vars = print_lst print_bnd [" "] vars (tab_i+1) in
+      let str_clauses = List.fold_right (fun (vars, e) acc ->
+        let e_str = print_e e (tab_i+1) ("]"::acc) in
+        "[("::(print_bnds vars (")"::e_str)))
+        clauses
+        (")"::acc) in
+      "(match " :: (print_e e tab_i (" "::str_clauses)) in
     Format.fprintf ppf "%s" (String.concat "" (print_e prog.head 0 []))
       
 

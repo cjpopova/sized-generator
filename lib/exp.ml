@@ -18,8 +18,9 @@ type exp =
   | Lambda of ((var list) * exp_label)
   | App of (exp_label * (exp_label list)) (* CJP: Applications renamed from Call*)
   | Letrec of (var * (var list) * exp_label)
-  | Let of (var * exp_label * exp_label) (* This is the old let, which probably isn't generated anywhere*)
+  | Let of (var * exp_label * exp_label) (* This is the old let, which isn't generated anywhere *)
   | ExtRef of string * Type.flat_ty
+  | Case of exp_label * Type.flat_ty * ((var list * exp_label) list) (* case e \tau of { (x ... -> e_1) ... } *)
 
   (* expression nodes *)
 type exp_node = {
