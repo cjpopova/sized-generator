@@ -93,6 +93,16 @@ let letrec_steps weight (prog : Exp.program) (hole : hole_info) (acc : rule_urn)
     singleton_generator weight Rules.letrec_constructor_step prog hole acc
   | _ -> acc
 
+let indir_call_ref_step weight (prog : Exp.program) (hole : hole_info) (acc : rule_urn) =
+  let gamma_refs = List.filter_map
+    (fun ref -> let (_, ty) = ref in 
+    match (TypeUtil.ty_produces hole.ty_label ty) with
+    | None -> None
+    | Some (doms) -> Some (ref, doms))
+    hole.vars in 
+  steps_generator prog hole acc
+                  Rules.indir_call_ref_step weight gamma_refs
+
 let std_lib_steps std_lib_m weight (prog : Exp.program) (hole : hole_info) (acc : rule_urn) =
   let lib_refs = List.filter_map (* TODO: instead, this should filter on ty_compat and the rule should handle creating argument holes *)
     (fun ref -> let (_, ty) = ref in
@@ -111,7 +121,8 @@ let main std_lib_m : t =
     base_constructor_steps          ( w_const 2.        );
     var_steps                       ( w_const 2.        );
     lambda_steps                    ( w_fuel_base 2. 1. );
-    s Rules.function_call_step      ( w_fuel 1.         );
+    s Rules.function_call_step      ( w_fuel 1.         ); (* TODO: get rid of this rule - replaced by indir_call_ref_step *)
+    indir_call_ref_step             ( w_fuel_base 2. 1. );
     letrec_steps                    ( w_fuel_base 2. 1. );
     std_lib_steps std_lib_m         ( w_const 1.        );
   ]

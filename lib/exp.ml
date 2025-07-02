@@ -39,22 +39,6 @@ type program = {
     (* variable operations *)
     new_var : unit -> var;
 
-    (* ty : Type.registry; *) (* CJP not sure if we need this*)
-    (*
-    (* type operations *)
-    new_ty : Type.ty -> Type.ty_label;
-    get_ty : Type.ty_label -> Type.ty;
-     *)
-    (*
-    (* type parameter operations *)
-    new_ty_params : Type.extvar -> Type.ty_params_label;
-    get_ty_params : Type.ty_params_label -> Type.ty_label list;
-    add_ty_param : Type.ty_params_label -> Type.ty_label -> unit;
-    (* all params labels that are associated with the given extvar *)
-    extvar_ty_params : Type.extvar -> Type.ty_params_label list;
-    ty_params_extvar : Type.ty_params_label -> Type.extvar;
-     *)
-
     (* expression operations *)
     new_exp : exp_node -> exp_label;
     get_exp : exp_label -> exp_node;

@@ -57,7 +57,7 @@ let letrec_constructor_step (prog : Exp.program) (hole : hole_info) =
 (* Creates function call/application *)
 let function_call_step (prog : Exp.program) (hole : hole_info) = 
   fun () ->
-  Debug.run (fun () -> Printf.eprintf ("creating function call (fuel=%n)\n") hole.fuel);
+  Debug.run (fun () -> Printf.eprintf ("creating function call\n"));
   let n = Int.of_float (sqrt (Float.of_int (Random.int hole.fuel))) + 1 in
   let tys = List.init n (fun _ -> TypeUtil.random_type (hole.fuel / n) prog) in (* random types for the arguments. these will be smaller than fuel*)
   let func = prog.new_exp {exp=Exp.Hole;
@@ -75,6 +75,21 @@ let function_call_step (prog : Exp.program) (hole : hole_info) =
 let std_lib_step (prog : Exp.program) (hole : hole_info) (name, ty) =
   fun () ->
   Debug.run (fun () -> Printf.eprintf ("creating std_lib reference\n"));
-  prog.set_exp hole.label {exp=ExtRef (name, ty); ty=hole.ty_label; prev=hole.prev; choices=Urn.empty}; (* using var as a placeholder for std_lib_refs*)
+  prog.set_exp hole.label {exp=ExtRef (name, ty); ty=hole.ty_label; prev=hole.prev; choices=Urn.empty};
   []
+
+let indir_call_ref_step (prog : Exp.program) (hole : hole_info) (ref, doms) =
+  fun () ->
+  let (var, ty) = ref in
+  Debug.run (fun () -> Printf.eprintf ("creating INDIR call reference (%s)\n") (Exp.Var.to_string var));
+  let func = prog.new_exp {exp=Exp.Var var;
+                           ty=ty;
+                           prev=Some hole.label;
+                           choices=Urn.empty} in
+  let args = List.map (fun ty -> prog.new_exp {exp=Exp.Hole;
+                                               ty=ty;
+                                               prev=Some hole.label;
+                                               choices=Urn.empty}) doms in
+  prog.set_exp hole.label {exp=Exp.App (func, args); ty=hole.ty_label; prev=hole.prev; choices=Urn.empty};
+  args
 
