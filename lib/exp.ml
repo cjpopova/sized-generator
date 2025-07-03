@@ -22,7 +22,7 @@ type exp =
   | ExtRef of string * Type.flat_ty
   | Case of exp_label * Type.flat_ty * ((var list * exp_label) list) (* case e \tau of { (x ... -> e_1) ... } *)
 
-  (* expression nodes *)
+(* expression nodes *)
 type exp_node = {
     exp : exp;
     ty : Type.flat_ty; (* CJP: this used to be a type label*)

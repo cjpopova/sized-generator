@@ -1,7 +1,6 @@
 (* type tree datatype *)
 type flat_ty =
-  | FlatTyInt
-  | FlatTyBool
+  | FlatTyCons of string * (flat_ty list)
   (* | FlatTyList of flat_ty *)
   | FlatTyArrow of (flat_ty list) * flat_ty
   (* | FlatTyVar of string *)
@@ -14,7 +13,7 @@ type size_exp = (* size algebra *)
 [@@deriving show]
 
 type size_ty = (* sized types*)
-  | TyCons of string * (flat_ty list) (* TODO: add size_exp*)
+  | TyCons of string * (flat_ty list) * size_exp
   (* generalization, where the ty list is parameter variables, like the type of a list (a la alphas from Barthe 2004 constructor schemes) *)
   | TyArrow of size_ty list * size_ty
 [@@deriving show]

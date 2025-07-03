@@ -2,8 +2,7 @@ open Type;;
 
 let rec is_same_ty tyl1 tyl2 = (* type-equal? *) (*CJP: todo add subtyping*)
   match (tyl1, tyl2) with
-  | (FlatTyBool, FlatTyBool) -> true
-  | (FlatTyInt, FlatTyInt) -> true
+  | (FlatTyCons (name1, _), FlatTyCons (name2, _)) -> name1 = name2
   | (FlatTyArrow (doms1, cod1), FlatTyArrow (doms2, cod2)) -> 
     List.length doms1 = List.length doms2
     && List.for_all2 is_same_ty doms1 doms2
@@ -15,18 +14,6 @@ let ty_produces (target : flat_ty) (maybe : flat_ty) =
   match maybe with
   | FlatTyArrow (doms, cod) -> if is_same_ty target cod then Some doms else None (*|| (ty_produces target cod) *)
   | _ -> None
-  
-(* TODO: random_ty should be retired because we shouldn't be creating random lambdas*)
-let rec random_type size (prog : Exp.program) =
-  (Choose.choose_frequency
-      [(8, (fun _ -> FlatTyBool));
-        (12, (fun _ -> FlatTyInt));
-        (* (size / 4, (fun _ -> TyList (random_type (size / 2) prog))); *)
-        (size / 4, (fun _ ->
-                      let n = (Random.int 3) + 1 in
-                      let tys = List.init n (fun _ -> random_type (size / (2 * n)) prog) in
-                      FlatTyArrow (tys, (random_type (size / 2) prog))))])
-  ()
 
 (************************ SIZES ***********************************)
 let rec substitute_size_exp (theta : size_exp) (i : string) (e : size_exp) : size_exp = 
@@ -39,9 +26,9 @@ let rec substitute_size_exp (theta : size_exp) (i : string) (e : size_exp) : siz
 TyBool TyBool -> true
 TyBool TyFun(_, TyBool) -> true
 *)
-let rec size_ty_compat (target : size_ty) (maybe : size_ty) =
+(* let rec size_ty_compat (target : size_ty) (maybe : size_ty) =
   match (target, maybe) with
   | (TyCons(name1, _), TyCons(name2, _)) -> name1 = name2
   | (TyCons(_, _), TyArrow(_,ty2)) -> size_ty_compat target ty2
   (* todo: include higher order case where target is a function *)
-  | (_, _) -> false
+  | (_, _) -> false *)

@@ -40,6 +40,29 @@ let exp_depth (prog : Exp.program) (e : Exp.exp_label) =
 
 (************************************ TRANSITIONS ************************************************)
 
+(* CJP TODO 7/3: make choices explicit
+choose : -> choice
+produce : choice -> <producer function starting with unit eg rule whatever>
+
+  in terms of singleton_generator, maybe not calling f until the sample step?
+
+  currently, 
+  type t = ((Exp.program -> hole_info -> rule_urn -> rule_urn) list)
+  main : (string * Type.flat_ty) list -> t
+  
+  
+  but then we need ???
+  - 
+
+  Another option: instead of rule_urn, have (string * rule) urn
+  eg give a name to the function
+  which can probably be provided by main or the generators here
+  but only if we can list all elements of the urn
+
+*)
+
+
+
 let steps_generator (prog : Exp.program) (hole : hole_info) (acc : rule_urn)
                     (rule : Exp.program -> hole_info -> 'a -> unit -> Exp.exp_label list)
                     (weight : hole_info -> 'a -> float)
@@ -63,20 +86,8 @@ let w_fuel n = w_fuel_base n 0.
 
 (************************************ GENERATORS ************************************************)
 
-let base_constructor_steps weight (prog : Exp.program) (hole : hole_info) (acc : rule_urn) =
-  (* TODO: improve integer sampling  *)
-  match hole.ty_label with
-  | FlatTyInt ->
-     let vals = [Exp.ValInt 0; Exp.ValInt 1; Exp.ValInt 2; Exp.ValInt (-1); Exp.ValInt 42] in
-     steps_generator prog hole acc
-                     Rules.base_constructor_step weight vals
-  | FlatTyBool ->
-     let vals = [Exp.ValBool true; Exp.ValBool false] in
-     steps_generator prog hole acc
-                     Rules.base_constructor_step weight vals
-  | _ -> acc
 
-  let var_steps weight (prog : Exp.program) (hole : hole_info) (acc : rule_urn) =
+let var_steps weight (prog : Exp.program) (hole : hole_info) (acc : rule_urn) =
   let ref_vars = List.filter (fun b -> TypeUtil.is_same_ty (snd b) hole.ty_label) hole.vars in
   steps_generator prog hole acc
                   Rules.var_step weight ref_vars
@@ -94,7 +105,7 @@ let letrec_steps weight (prog : Exp.program) (hole : hole_info) (acc : rule_urn)
   | _ -> acc
 
 let indir_call_ref_step weight (prog : Exp.program) (hole : hole_info) (acc : rule_urn) =
-  let gamma_refs = List.filter_map
+  let gamma_refs : ((Exp.var * Type.flat_ty) * Type.flat_ty list) list= List.filter_map
     (fun ref -> let (_, ty) = ref in 
     match (TypeUtil.ty_produces hole.ty_label ty) with
     | None -> None
@@ -104,24 +115,21 @@ let indir_call_ref_step weight (prog : Exp.program) (hole : hole_info) (acc : ru
                   Rules.indir_call_ref_step weight gamma_refs
 
 let std_lib_steps std_lib_m weight (prog : Exp.program) (hole : hole_info) (acc : rule_urn) =
-  let lib_refs = List.filter_map (* TODO: instead, this should filter on ty_compat and the rule should handle creating argument holes *)
+  let lib_refs = List.filter_map (* NOTE: this type filtering could be more efficient *)
     (fun ref -> let (_, ty) = ref in
-      if (TypeUtil.is_same_ty hole.ty_label ty) then (Some ref) else None)
+      if (TypeUtil.is_same_ty hole.ty_label ty) || (Option.is_some (TypeUtil.ty_produces hole.ty_label ty)) then (Some ref) else None)
     std_lib_m in
+  (* Debug.run (fun () -> Printf.eprintf ("std_lib_steps filtered refs: %s\n") 
+    (List.fold_left (fun acc (name, _) -> name ^ " " ^ acc) "" lib_refs)); *)
   steps_generator prog hole acc
                   Rules.std_lib_step weight lib_refs
 
-let s rule weight =
-  singleton_generator weight rule
-
 (********************************************************)
 
-let main std_lib_m : t =
+let main (std_lib_m : (string * Type.flat_ty) list) : t =
   [
-    base_constructor_steps          ( w_const 2.        );
     var_steps                       ( w_const 2.        );
     lambda_steps                    ( w_fuel_base 2. 1. );
-    s Rules.function_call_step      ( w_fuel 1.         ); (* TODO: get rid of this rule - replaced by indir_call_ref_step *)
     indir_call_ref_step             ( w_fuel_base 2. 1. );
     letrec_steps                    ( w_fuel_base 2. 1. );
     std_lib_steps std_lib_m         ( w_const 1.        );
