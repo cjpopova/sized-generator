@@ -53,7 +53,20 @@ let indir_call_ref_step weight (generate : hole_info -> exp) (hole : hole_info) 
   steps_generator hole acc
                   Rules.indir_call_ref_step weight generate gamma_refs
 
-let std_lib_steps std_lib_m weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
+(* NOTE could be improved: The next 2 rules are different wrappers around std_lib_step. *)
+let base_std_lib_steps (base_std_lib : (string * flat_ty) list)
+                       weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
+  let lib_refs = List.filter_map
+    (fun ref -> let (_, ty) = ref in
+      if (TypeUtil.is_same_ty hole.ty ty) then (Some ref) else None)
+    base_std_lib in
+  (* Debug.run (fun () -> Printf.eprintf ("std_lib_steps filtered refs: %s\n") 
+    (List.fold_left (fun acc (name, _) -> name ^ " " ^ acc) "" lib_refs)); *)
+  steps_generator hole acc
+                Rules.std_lib_step weight generate lib_refs
+
+let std_lib_steps (std_lib_m : (string * flat_ty) list)
+                   weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
   let lib_refs = List.filter_map (* NOTE: this type filtering could be more efficient *)
     (fun ref -> let (_, ty) = ref in
       if (TypeUtil.is_same_ty hole.ty ty) || (TypeUtil.ty_produces hole.ty ty) then (Some ref) else None)
@@ -66,11 +79,14 @@ let std_lib_steps std_lib_m weight (generate : hole_info -> exp) (hole : hole_in
 (********************************************************)
 
 let main (lib : library) : generators_t =
-  let { std_lib=std_lib; data_cons=_} = lib in 
+  let { std_lib=std_lib; data_cons=data_cons} = lib in 
+  let std_lib=TypeUtil.recur_constructors_to_std_lib data_cons @ std_lib in
+  let base_std_lib=TypeUtil.base_constructors_to_std_lib data_cons in
   [
     var_steps                       ( w_const 2.        );
     lambda_steps                    ( w_fuel_base 2. 1. );
     indir_call_ref_step             ( w_fuel_base 2. 1. );
     letrec_steps                    ( w_fuel_base 2. 1. );
-    std_lib_steps std_lib           ( w_const 1.        );
+    base_std_lib_steps base_std_lib           ( w_const 1.        ); (* base constructors always available*)
+    std_lib_steps std_lib           ( w_fuel_base 2. 0. ); (* recursive constructors & the rest of std_lib require >0 fuel *)
   ]

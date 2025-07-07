@@ -41,7 +41,7 @@ let firstorder_application (generate : generate_t) (hole : hole_info) (name : st
   (* std_lib references, including direct references and applications *)
 let std_lib_step (generate : generate_t) (hole : hole_info) ((name, ty) : (string * Exp.flat_ty))  =
   fun () ->
-  Debug.run (fun () -> Printf.eprintf ("creating std_lib reference\n"));
+  Debug.run (fun () -> Printf.eprintf ("creating std_lib reference %d\n") hole.fuel);
   if TypeUtil.is_same_ty hole.ty ty then
     ExtRef (name, ty)
   else 
