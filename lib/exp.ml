@@ -1,96 +1,91 @@
-(* expression labels *)
-module ExpLabel = Key.Make (struct let x="lab" end)
-type exp_label = ExpLabel.t
+(* type tree datatype *)
+type flat_ty =
+  | FlatTyCons of string * (flat_ty list)
+  | FlatTyArrow of (flat_ty list) * flat_ty
+[@@deriving show]
 
-(* variables *)
-module Var = Key.Make (struct let x="x" end)
-type var = Var.t
+type size_exp = (* size algebra *)
+  | Inf
+  | SVar of string
+  | SHat of size_exp
+[@@deriving show]
 
-type rule_urn = (unit -> exp_label list) Urn.t
+type size_ty = (* sized types*)
+  | TyCons of string * (flat_ty list) * size_exp
+  (* generalization, where the ty list is parameter variables, like the type of a list (a la alphas from Barthe 2004 constructor schemes) *)
+  | TyArrow of size_ty list * size_ty
+[@@deriving show]
 
-(* expression datatype <- this is the grammar we can generate. notice that subexpressions are labelled and not pure exps*)
+(* NOTES
+Sized_ty_std_lib // assume that all constructors have a single size variable <i>
+let tNat = TyCons ("Nat", [])
+  O           tNat <Ihat>
+  S           tNat <i> -s-> tNat <ihat>
+let tBoolList = TyCons ("List", []) ; since we're instantiating this with bool, no variables necessary
+  Nil         tBoolList <ihat>
+  Cons        TBool <inf>, TBoolList <i> -s-> TBoolList <ihat>
+
+
+--------------------------------------------------------------
+
+substitute : sized_ty size_exp -> sized_ty
+substitute (UBool, _) _ = (UBool, inf)
+substitute (UNat, e1) e2 = (UNat, (substitute_size_exp e1 e2)
+*)
+
+(***************************************************************************************************************)
+
 type exp =
-  | Hole
+  (* | Hole of flat_ty * env *)
   | Var of var
-  | ValInt of int (* CJP: replace/add datatypes*)
-  | ValBool of bool
-  (* | StdLibRef of string *)
-  | Lambda of ((var list) * exp_label)
-  | App of (exp_label * (exp_label list)) (* CJP: Applications renamed from Call*)
-  | Letrec of (var * (var list) * exp_label)
-  | Let of (var * exp_label * exp_label) (* This is the old let, which isn't generated anywhere *)
-  | ExtRef of string * Type.flat_ty
-  | Case of exp_label * Type.flat_ty * ((var list * exp_label) list) (* case e \tau of { (x ... -> e_1) ... } *)
+  | Lambda of ((var list) * exp)
+  | App of (exp * (exp list))
+  | Letrec of (var * (var list) * exp) (*  (letrec ([f (λ (params) body)]) f)  *)
+  | ExtRef of string * flat_ty
+  | Case of exp * flat_ty * ((var list * exp) list) (* case e \tau of { (x ... -> e_1) ... } *)
+[@@deriving show]
 
-(* expression nodes *)
-type exp_node = {
-    exp : exp;
-    ty : Type.flat_ty; (* CJP: this used to be a type label*)
-    prev : exp_label option;
-    choices : rule_urn (* each node will store a list of possible choices. this might be useful for backtracking *)
-  }
+and var = {
+  var_name : string;
+  var_ty : flat_ty;
+}
+[@@deriving show]
+and env = var list
+[@@deriving show]
 
-type program = {
-    (* the head node of the program *)
-    mutable head : exp_label;
+type data_info = { 
+    ty : flat_ty; 
+    constructors : (string * flat_ty list) list
+    (* case be extended w/ size information, like whether it's sized or
+    what its size variable is *)
+}
+[@@deriving show]
 
-    (* std_lib : (string * Type.flat_ty) list; *)
+type data_constructor_t = data_info list
 
-    (* variable operations *)
-    new_var : unit -> var;
+type library = {
+    std_lib : (string * flat_ty) list;
+    data_cons : data_constructor_t
+}
 
-    (* expression operations *)
-    new_exp : exp_node -> exp_label;
-    get_exp : exp_label -> exp_node;
-    set_exp : exp_label -> exp_node -> unit; (* given a label and a node, fill that the expression (hole) w/ that label w/ the node*)
+type hole_info = {
+    fuel : int;
+    env : env;
+    depth : int;
+    ty : flat_ty
+}
 
-    (* FIXME *)
-    rename_child : (exp_label * exp_label) -> exp_label -> unit;
-  }
+type rule_urn = (unit -> exp) Urn.t
+and generate_t = hole_info -> exp
+and generators_t = (generate_t -> hole_info -> rule_urn -> rule_urn) list
 
-let make_program ty =
-  let exp_tbl : exp_node ExpLabel.Tbl.t = ExpLabel.Tbl.create 100 in
-  
-  (* let ty_registry = Type.make () in *)
+(**************************** EXP UTILS ********************************************)
 
-  let new_var () = Var.make() in
-
-  let new_exp node =
-    let lab = ExpLabel.make() in
-    ExpLabel.Tbl.add exp_tbl lab node;
-    lab in
-  let get_exp lab = ExpLabel.Tbl.find exp_tbl lab in
-  let set_exp lab node = ExpLabel.Tbl.replace exp_tbl lab node in
-
-  (* Justin: I hate this so much *)
-  (* Ben: a necessary evil *)
-  let rename_child (a, b) e =
-    let rename e' = if e' == a then b else e' in
-
-    let node = get_exp e in
-    let set e' = set_exp e {exp=e'; ty=node.ty; prev=node.prev; choices=Urn.empty} in
-    match node.exp with
-    | Let (x, rhs, body) ->
-       set (Let (x, rename rhs, rename body))
-    | Lambda (params, body) ->
-      set (Lambda (params, rename body))
-    | App (func, args) ->
-      set (App (rename func, (List.map rename args)))
-    | _ -> () in
-
-  let head = new_exp {exp=Hole; ty=ty; prev=None; choices=Urn.empty} in
-
-  {
-    head = head;
-
-    (* std_lib = std_lib; *)
-
-    (* ty = ty_registry; *)
-    new_var = new_var;
-    
-    new_exp = new_exp;
-    get_exp = get_exp;
-    set_exp = set_exp;
-
-    rename_child = rename_child;
+let var_counter = ref 0
+let reset_var_counter () = var_counter := 0
+let new_var ty =
+  let x = !var_counter in
+  incr var_counter;
+  { var_name = "x" ^ Int.to_string x;
+    var_ty = ty;
   }

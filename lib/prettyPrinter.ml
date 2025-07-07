@@ -17,24 +17,16 @@ let rec print_lst (print : 'a -> int -> string list -> string list) (sep : strin
     | [] -> acc
     | z :: zs -> print z tab_i (sep @ (print_lst print sep zs tab_i acc))
 
-let pprint_prog (ppf : Format.formatter) (prog : Exp.program) : unit =
+let pprint_prog (ppf : Format.formatter) (prog : Exp.exp) : unit =
   let print_bnd (x : Exp.var) (_ : int) (acc : string list) =
     (* TODO: type information *)
-    (Exp.Var.to_string x) :: acc
+    (x.var_name) :: acc
   in
-  let rec print_e (e : Exp.exp_label) (tab_i : int) (acc : string list) : string list =
+  let rec print_e (e : Exp.exp) (tab_i : int) (acc : string list) : string list =
     let tab_i1 = tab_i+1 in
-    match (prog.get_exp e).exp with
-    | Hole -> "[~]" :: acc
-    | Var x -> (Exp.Var.to_string x) :: acc
-    | ValInt i -> (Int.to_string i) :: acc
-    | ValBool b -> (Bool.to_string b) :: acc
-    | Let (x, rhs, body) ->
-      let body = "\n"::(tab tab_i)::"in"
-                 ::"\n"::(tab tab_i1)::(print_e body tab_i1 acc) in
-      let rhs = "\n"::(tab tab_i1)::(print_e rhs tab_i1 body) in
-      let bnd = "let "::(print_bnd x tab_i (" = "::rhs)) in
-      bnd 
+    match e with
+    (* | Hole -> "[~]" :: acc *)
+    | Var x -> (x.var_name) :: acc
     | Lambda (params, body) ->
       let print_bnds = print_lst print_bnd [" "] in
       let body = "\n"::(tab tab_i1)::(print_e body (tab_i+1) (")"::acc)) in
@@ -46,9 +38,9 @@ let pprint_prog (ppf : Format.formatter) (prog : Exp.program) : unit =
       "(call"::"\n"::(tab tab_i1)::(print_e func tab_i1 args)
     | Letrec (func, params, body) -> (*  (letrec ([f (λ (params) body)]) f)  *)
       let print_bnds = print_lst print_bnd [" "] in
-      let tail = ")]) "::(Exp.Var.to_string func)::")"::acc in
+      let tail = ")]) "::(func.var_name)::")"::acc in
       let body = "\n"::(tab tab_i1)::(print_e body (tab_i+1) tail) in
-      let lambda = "(letrec (["::(Exp.Var.to_string func)::" (λ "::"("::(print_bnds params tab_i (")"::body)) in
+      let lambda = "(letrec (["::(func.var_name)::" (λ "::"("::(print_bnds params tab_i (")"::body)) in
       lambda
     | ExtRef (name, _) ->
       name :: acc
@@ -60,10 +52,10 @@ let pprint_prog (ppf : Format.formatter) (prog : Exp.program) : unit =
         clauses
         (")"::acc) in
       "(match " :: (print_e e tab_i (" "::str_clauses)) in
-    Format.fprintf ppf "%s" (String.concat "" (print_e prog.head 0 []))
+    Format.fprintf ppf "%s" (String.concat "" (print_e prog 0 []))
       
 
-let pretty_print (prog : Exp.program) : unit =
+let pretty_print (prog : Exp.exp) : unit =
   print_string("\n");
   pprint_prog Format.std_formatter prog;
   print_string("\n")

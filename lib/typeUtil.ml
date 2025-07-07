@@ -1,4 +1,4 @@
-open Type;;
+open Exp;;
 
 let rec is_same_ty tyl1 tyl2 = (* type-equal? *) (*CJP: todo add subtyping*)
   match (tyl1, tyl2) with
@@ -12,8 +12,8 @@ let rec is_same_ty tyl1 tyl2 = (* type-equal? *) (*CJP: todo add subtyping*)
 (* is maybe a function type that produces target? TODO NOT higher order*)
 let ty_produces (target : flat_ty) (maybe : flat_ty) =
   match maybe with
-  | FlatTyArrow (doms, cod) -> if is_same_ty target cod then Some doms else None (*|| (ty_produces target cod) *)
-  | _ -> None
+  | FlatTyArrow (_, cod) -> is_same_ty target cod
+  | _ -> false
 
 (************************ SIZES ***********************************)
 let rec substitute_size_exp (theta : size_exp) (i : string) (e : size_exp) : size_exp = 

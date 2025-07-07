@@ -1,97 +1,58 @@
-type hole_info = {
-    label : Exp.exp_label;
-    ty_label : Type.flat_ty;
-    prev : Exp.exp_label option;
-    fuel : int;
-    vars : (Exp.var * Type.flat_ty) list;
-    depth : int;
-  }
+open Exp;;
 
-(* ValInt, ValBool, etc *)
-let base_constructor_step (prog : Exp.program) (hole : hole_info) exp' =
-  fun () ->
-  Debug.run (fun () -> Printf.eprintf ("Creating base constructor\n"));
-  prog.set_exp hole.label {exp=exp'; ty=hole.ty_label; prev=hole.prev; choices=Urn.empty};
-  []
-  (*match prog.ty.get_ty hole.ty_label with
-  | TyInt ->
-     fun () ->
-     set exp'; []
-  | _ -> raise (Util.Impossible "bad base type")*)
-
-
-let var_step (prog : Exp.program) (hole : hole_info) (var, _) =
+let var_step (_ : generate_t) (_ : hole_info) (var : var) =
   fun () ->
   Debug.run (fun () -> Printf.eprintf ("creating var reference\n"));
-  prog.set_exp hole.label {exp=Exp.Var var; ty=hole.ty_label; prev=hole.prev; choices=Urn.empty};
-  []
+  Var var
 
 (* Creates a lambda *)
-let func_constructor_step (prog : Exp.program) (hole : hole_info) =
-  let set exp = prog.set_exp hole.label {exp=exp; ty=hole.ty_label; prev=hole.prev; choices=Urn.empty} in
-  match hole.ty_label with
+let func_constructor_step (generate : generate_t) (hole : hole_info) =
+  match hole.ty with
   | FlatTyArrow (ty_params, ty') ->
      fun () ->
      Debug.run (fun () -> Printf.eprintf ("creating lambda\n"));
-     let xs = List.map (fun _ -> prog.new_var ()) ty_params in
-     let body = prog.new_exp {exp=Exp.Hole; ty=ty'; prev=Some hole.label; choices=Urn.empty} in
-     set (Exp.Lambda (xs, body));
-     [body]
+     let xs = List.map (fun t -> Exp.new_var t) ty_params in
+     let body_hole = { hole with ty=ty'; env=xs@hole.env } in
+     Exp.Lambda (xs, generate body_hole)
   | _ -> fun () ->
          raise (Util.Impossible "function constructor on non-function type")
 
 (* Creates a letrec (named function with recursive call)*)
-let letrec_constructor_step (prog : Exp.program) (hole : hole_info) =
-  let set exp = prog.set_exp hole.label {exp=exp; ty=hole.ty_label; prev=hole.prev; choices=Urn.empty} in
-  match hole.ty_label with
+let letrec_constructor_step (generate : generate_t) (hole : hole_info) =
+  match hole.ty with
   | FlatTyArrow (ty_params, ty') ->
      fun () ->
      Debug.run (fun () -> Printf.eprintf ("creating letrec\n"));
-     let xs = List.map (fun _ -> prog.new_var ()) ty_params in
-     let body = prog.new_exp {exp=Exp.Hole; ty=ty'; prev=Some hole.label; choices=Urn.empty} in
-     set (Exp.Letrec (prog.new_var (), xs, body));
-     [body]
+     let f = Exp.new_var hole.ty in
+     let xs = List.map (fun t -> Exp.new_var t) ty_params in
+     let body_hole = { hole with ty=ty'; env=f::xs@hole.env } in
+     Exp.Letrec (f, xs, generate body_hole)
   | _ -> fun () ->
          raise (Util.Impossible "letrec constructor on non-function type")
 
 (* NOTE: this could be reused for indir_call_ref_step if you're smarter*)
-let firstorder_application (prog : Exp.program) (hole : hole_info) (name : string) (ty : Type.flat_ty) = 
+let firstorder_application (generate : generate_t) (hole : hole_info) (name : string) (ty : Exp.flat_ty) = 
   match ty with
-  | FlatTyArrow (ty_params, _) -> (* single order assumes that the codomain is hole.ty_label. eg we can get to the target type in a single arrow*)
-    let func = prog.new_exp {exp=ExtRef (name, ty);
-                              ty = ty;
-                              prev=Some hole.label;
-                              choices=Urn.empty} in
-      let args = List.map (fun ty -> prog.new_exp {exp=Exp.Hole;
-                                                  ty=ty;
-                                                  prev=Some hole.label;
-                                                  choices=Urn.empty}) ty_params in
-  prog.set_exp hole.label {exp=Exp.App (func, args); ty=hole.ty_label; prev=hole.prev; choices=Urn.empty};  args
+  | FlatTyArrow (ty_params, _) -> (* single order assumes that the codomain is hole.ty. eg we can get to the target type in a single arrow*)
+    let args = List.map (fun t -> generate { hole with ty=t}) ty_params in
+    Exp.App (ExtRef (name, ty), args)
   | _ -> raise (Util.Impossible "higher order application on non-function type")
 
   (* std_lib references, including direct references and applications *)
-let std_lib_step (prog : Exp.program) (hole : hole_info) ((name, ty) : (string * Type.flat_ty))  =
+let std_lib_step (generate : generate_t) (hole : hole_info) ((name, ty) : (string * Exp.flat_ty))  =
   fun () ->
   Debug.run (fun () -> Printf.eprintf ("creating std_lib reference\n"));
-  if TypeUtil.is_same_ty hole.ty_label ty then
-    (prog.set_exp hole.label {exp=ExtRef (name, ty); ty=hole.ty_label; prev=hole.prev; choices=Urn.empty}; 
-    [])
+  if TypeUtil.is_same_ty hole.ty ty then
+    ExtRef (name, ty)
   else 
-    firstorder_application prog hole name ty
+    firstorder_application generate hole name ty
 
-
-let indir_call_ref_step (prog : Exp.program) (hole : hole_info) ((ref, doms) : (Exp.var * Type.flat_ty) * Type.flat_ty list)=
+let indir_call_ref_step (generate : generate_t) (hole : hole_info) (var : Exp.var) =
   fun () ->
-  let (var, ty) = ref in
-  Debug.run (fun () -> Printf.eprintf ("creating INDIR call reference (%s)\n") (Exp.Var.to_string var));
-  let func = prog.new_exp {exp=Exp.Var var;
-                           ty=ty;
-                           prev=Some hole.label;
-                           choices=Urn.empty} in
-  let args = List.map (fun ty -> prog.new_exp {exp=Exp.Hole;
-                                               ty=ty;
-                                               prev=Some hole.label;
-                                               choices=Urn.empty}) doms in
-  prog.set_exp hole.label {exp=Exp.App (func, args); ty=hole.ty_label; prev=hole.prev; choices=Urn.empty};
-  args
+  match var.var_ty with
+  | FlatTyArrow (ty_params, _) -> 
+    Debug.run (fun () -> Printf.eprintf ("creating INDIR call reference (%s)\n") (var.var_name));
+    let args = List.map (fun t -> generate { hole with ty=t}) ty_params in
+    Exp.App (Exp.Var var, args)
+  | _ -> raise (Util.Impossible "indir_call_ref_step on non-function type")
 
