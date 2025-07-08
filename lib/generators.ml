@@ -53,7 +53,10 @@ let indir_call_ref_step weight (generate : hole_info -> exp) (hole : hole_info) 
   steps_generator hole acc
                   Rules.indir_call_ref_step weight generate gamma_refs
 
-(* NOTE could be improved: The next 2 rules are different wrappers around std_lib_step. *)
+(* NOTE could be improved: The next 2 rules are different wrappers around std_lib_step. 
+1. base_data_steps includes the base constructor steps (eg true, false, 0, [], leaf)
+2. std_lib_steps includes the std_lib combined (in main) with the non-base constructors of data type (eg Succ, cons, node)
+*)
 let base_std_lib_steps (base_std_lib : (string * flat_ty) list)
                        weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
   let lib_refs = List.filter_map
@@ -76,6 +79,17 @@ let std_lib_steps (std_lib_m : (string * flat_ty) list)
   steps_generator hole acc
                 Rules.std_lib_step weight generate lib_refs
 
+(* NOTE: for now, we allow only variables (any variables) to be at the head of `case` *)
+let case_steps (data_cons : data_constructor_t)
+                   weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
+  let var_constructors : (var * ((string * flat_ty list) list)) list = 
+    List.map 
+      (fun var -> (var, TypeUtil.lookup_constructors data_cons var.var_ty))
+      hole.env in
+  steps_generator hole acc
+                Rules.case_step weight generate var_constructors
+
+
 (********************************************************)
 
 let main (lib : library) : generators_t =
@@ -84,9 +98,10 @@ let main (lib : library) : generators_t =
   let base_std_lib=TypeUtil.base_constructors_to_std_lib data_cons in
   [
     var_steps                       ( w_const 2.        );
-    lambda_steps                    ( w_fuel_base 2. 1. );
+    lambda_steps                    ( w_fuel_base 10. 1. );
     indir_call_ref_step             ( w_fuel_base 2. 1. );
-    letrec_steps                    ( w_fuel_base 2. 1. );
+    letrec_steps                    ( w_fuel_base 4. 1. );
     base_std_lib_steps base_std_lib           ( w_const 1.        ); (* base constructors always available*)
-    std_lib_steps std_lib           ( w_fuel_base 2. 0. ); (* recursive constructors & the rest of std_lib require >0 fuel *)
+    std_lib_steps std_lib           ( w_fuel_base 1. 0. ); (* recursive constructors & the rest of std_lib require >0 fuel *)
+    case_steps data_cons            ( w_fuel_base 4. 0. ); (* NOTE: not sure about weight *)
   ]

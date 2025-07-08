@@ -46,6 +46,13 @@ let recur_constructors_to_std_lib (cons : data_constructor_t) : (string * flat_t
     []
     cons
 
+(* get the constructors of a given type *)
+let rec lookup_constructors (cons : data_constructor_t) (ty : flat_ty) : (string * flat_ty list) list =
+  match cons with
+  | [] -> raise (Util.Impossible "lookup: constructors not found")
+  | {ty=t; constructors=constructors} :: rst ->
+    if is_same_ty t ty then constructors else lookup_constructors rst ty
+
 (************************ SIZES ***********************************)
 let rec substitute_size_exp (theta : size_exp) (i : string) (e : size_exp) : size_exp = 
   match theta with

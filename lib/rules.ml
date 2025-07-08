@@ -56,3 +56,16 @@ let indir_call_ref_step (generate : generate_t) (hole : hole_info) (var : Exp.va
     Exp.App (Exp.Var var, args)
   | _ -> raise (Util.Impossible "indir_call_ref_step on non-function type")
 
+let case_step (generate : generate_t) (hole : hole_info) 
+              ((var, constructors) : var * (string * flat_ty list) list) =
+  fun () ->
+    Debug.run (fun () -> Printf.eprintf ("creating case\n"));
+    let params : var list list = 
+      List.map 
+      (fun (_, ty_params) -> List.map (fun ty -> Exp.new_var ty) ty_params)
+      constructors in
+    let clause_bodies =   
+      List.map 
+      (fun plst -> generate { hole with env=plst@hole.env})
+      params in
+    Exp.Case(Var var, var.var_ty, List.combine params clause_bodies)

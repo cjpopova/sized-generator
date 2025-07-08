@@ -22,7 +22,7 @@ let generate_stlc (size : int) =
   Generate.generate_fp 
     steps
     size
-    tInt
+    ([tInt] --> tInt)
 
 let generate_batch exp_size batch_size =
 Seq.init batch_size
@@ -33,5 +33,5 @@ Seq.init batch_size
 
 let () = 
   Debug.debug_mode := true;;
-Seq.iter (fun e -> PrettyPrinter.pretty_print e) (generate_batch 10 10)
+Seq.iter (fun e -> PrettyPrinter.pretty_print e data_constructors) (generate_batch 5 1)
 
