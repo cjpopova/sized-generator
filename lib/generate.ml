@@ -15,10 +15,10 @@ let generate_exp (steps : (hole_info -> rule_urn -> rule_urn) list) (hole : hole
        with
          Urn.EmptyUrn _ -> sample_lp rest
     )
-    | None -> raise (Urn.EmptyUrn (Format.sprintf "%s" (show_flat_ty hole.ty))) in
+    | None -> raise (Urn.EmptyUrn (Format.sprintf "%s" (show_size_ty hole.ty))) in
   sample_lp steps () (* calls the selected rule *)
 
-let generate_fp (steps : generators_t) (size : int) (ty : flat_ty) : exp = (* this is the entry point*)
+let generate_fp (steps : generators_t) (size : int) (ty : size_ty) : exp = (* this is the entry point*)
   let hole : hole_info = {
     fuel=size+1;
     env=[];

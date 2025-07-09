@@ -2,19 +2,33 @@ open Exp;;
 
 (*********************** TYPE COMPARISON ******************************)
 
+(* size_exp comparison*)
+let rec ($<=) (sexp1 : size_exp) (sexp2 : size_exp) : bool = 
+  match sexp1 with
+  | Inf -> false
+  | (SVar _) -> true (* NOTE: assume they have the same size variable? 
+                        are we ever comparing size_exps with different variables in the simple algebra? *)
+  | (SHat e1) -> 
+    match sexp2 with
+    | Inf -> true
+    | (SVar _) -> false
+    | (SHat e2) -> e1 $<= e2
+
 let rec is_same_ty tyl1 tyl2 = (* type-equal? *) (*CJP: todo add subtyping*)
   match (tyl1, tyl2) with
-  | (FlatTyCons (name1, _), FlatTyCons (name2, _)) -> name1 = name2
-  | (FlatTyArrow (doms1, cod1), FlatTyArrow (doms2, cod2)) -> 
+  | (TyCons (name1, _, sexp1), TyCons (name2, _, sexp2)) ->
+    name1 = name2
+    && sexp1 $<= sexp2 (* allows size subtyping *)
+  | (TyArrow (doms1, cod1), TyArrow (doms2, cod2)) -> 
     List.length doms1 = List.length doms2
     && List.for_all2 is_same_ty doms1 doms2
     && is_same_ty cod1 cod2
   | (_, _) -> false
 
 (* is maybe a function type that produces target? TODO NOT higher order*)
-let ty_produces (target : flat_ty) (maybe : flat_ty) =
+let ty_produces target maybe =
   match maybe with
-  | FlatTyArrow (_, cod) -> is_same_ty target cod
+  | TyArrow (_, cod) -> is_same_ty target cod
   | _ -> false
 
 (********************** CONSTRUCTORS **********************************)
@@ -25,7 +39,7 @@ Returns the std_lib form of *base* datatype constructors, or ones that require n
 recursive arguments.
 Example (TO TEST): [{ty=tInt;  constructors=["Zero", []; ("Succ", [tInt])]}] -> ["Zero", tyInt]
 *)
-let base_constructors_to_std_lib (cons : data_constructor_t) : (string * flat_ty) list = 
+let base_constructors_to_std_lib (cons : data_constructor_t) : (string * size_ty) list = 
   List.fold_left
     (fun acc {ty=ty; constructors=constructors} -> 
       List.filter_map 
@@ -36,7 +50,7 @@ let base_constructors_to_std_lib (cons : data_constructor_t) : (string * flat_ty
     cons
 
 (* Same as base_constructors_to_std_lib, but for recursive constructors (eg Succ) *)
-let recur_constructors_to_std_lib (cons : data_constructor_t) : (string * flat_ty) list = 
+let recur_constructors_to_std_lib (cons : data_constructor_t) : (string * size_ty) list = 
   List.fold_left
     (fun acc {ty=ty; constructors=constructors} -> 
       List.filter_map 
@@ -47,26 +61,25 @@ let recur_constructors_to_std_lib (cons : data_constructor_t) : (string * flat_t
     cons
 
 (* get the constructors of a given type *)
-let rec lookup_constructors (cons : data_constructor_t) (ty : flat_ty) : (string * flat_ty list) list =
+let rec lookup_constructors (cons : data_constructor_t) (ty : size_ty) : (string * size_ty list) list =
   match cons with
-  | [] -> raise (Util.Impossible "lookup: constructors not found")
+  | [] -> (match ty with
+    | TyCons (name, _, _) -> raise (Util.Impossible (Format.sprintf "lookup: constructors not found: %s" name))
+    | TyArrow _ ->  raise (Util.Impossible "lookup: constructors not found "))
   | {ty=t; constructors=constructors} :: rst ->
     if is_same_ty t ty then constructors else lookup_constructors rst ty
 
-(************************ SIZES ***********************************)
+(************************ SIZE ALGEBRA ***********************************)
+
 let rec substitute_size_exp (theta : size_exp) (i : string) (e : size_exp) : size_exp = 
   match theta with
   | Inf -> Inf
   | (SVar x) -> if x = i then e else (SVar x)
   | (SHat theta') -> (SHat (substitute_size_exp theta' i e))
 
-(* std_lib type compatibility:
-TyBool TyBool -> true
-TyBool TyFun(_, TyBool) -> true
-*)
-(* let rec size_ty_compat (target : size_ty) (maybe : size_ty) =
-  match (target, maybe) with
-  | (TyCons(name1, _), TyCons(name2, _)) -> name1 = name2
-  | (TyCons(_, _), TyArrow(_,ty2)) -> size_ty_compat target ty2
-  (* todo: include higher order case where target is a function *)
-  | (_, _) -> false *)
+    (*
+  substitute : sized_ty size_exp -> sized_ty
+  substitute (UBool, _) _ = (UBool, inf)
+  substitute (UNat, e1) e2 = (UNat, (substitute_size_exp e1 e2)
+  *)
+

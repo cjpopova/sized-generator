@@ -37,13 +37,13 @@ let var_steps weight (generate : hole_info -> exp) (hole : hole_info) (acc : rul
 
 let lambda_steps weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
   match hole.ty with
-  | FlatTyArrow _ ->
+  | TyArrow _ ->
     singleton_generator weight Rules.func_constructor_step hole acc generate
   | _ -> acc
 
 let letrec_steps weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
   match hole.ty with
-  | FlatTyArrow _ ->
+  | TyArrow _ ->
     singleton_generator weight Rules.letrec_constructor_step hole acc generate
   | _ -> acc
 
@@ -57,7 +57,7 @@ let indir_call_ref_step weight (generate : hole_info -> exp) (hole : hole_info) 
 1. base_data_steps includes the base constructor steps (eg true, false, 0, [], leaf)
 2. std_lib_steps includes the std_lib combined (in main) with the non-base constructors of data type (eg Succ, cons, node)
 *)
-let base_std_lib_steps (base_std_lib : (string * flat_ty) list)
+let base_std_lib_steps (base_std_lib : (string * size_ty) list)
                        weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
   let lib_refs = List.filter_map
     (fun ref -> let (_, ty) = ref in
@@ -68,7 +68,7 @@ let base_std_lib_steps (base_std_lib : (string * flat_ty) list)
   steps_generator hole acc
                 Rules.std_lib_step weight generate lib_refs
 
-let std_lib_steps (std_lib_m : (string * flat_ty) list)
+let std_lib_steps (std_lib_m : (string * size_ty) list)
                    weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
   let lib_refs = List.filter_map (* NOTE: this type filtering could be more efficient *)
     (fun ref -> let (_, ty) = ref in
@@ -82,7 +82,7 @@ let std_lib_steps (std_lib_m : (string * flat_ty) list)
 (* NOTE: for now, we allow only variables (any variables) to be at the head of `case` *)
 let case_steps (data_cons : data_constructor_t)
                    weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
-  let var_constructors : (var * ((string * flat_ty list) list)) list = 
+  let var_constructors : (var * ((string * size_ty list) list)) list = 
     List.map 
       (fun var -> (var, TypeUtil.lookup_constructors data_cons var.var_ty))
       hole.env in

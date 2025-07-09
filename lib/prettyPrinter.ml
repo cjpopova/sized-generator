@@ -17,10 +17,10 @@ let rec print_lst (print : 'a -> int -> string list -> string list) (sep : strin
     | [] -> acc
     | z :: zs -> print z tab_i (sep @ (print_lst print sep zs tab_i acc))
 
-let rec string_of_ty (ty : Exp.flat_ty) =
+let rec string_of_ty (ty : Exp.size_ty) =
   match ty with
-  | Exp.FlatTyCons(name, _) -> name
-  | Exp.FlatTyArrow(doms, cod) -> 
+  | Exp.TyCons(name, _, _) -> name
+  | Exp.TyArrow(doms, cod) -> 
     "[" ^ List.fold_right (fun t acc -> string_of_ty t ^ acc) doms "" 
       ^ "] --> " ^ string_of_ty cod
 
