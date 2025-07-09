@@ -18,16 +18,16 @@ let steps : generators_t = (Generators.main {std_lib = std_lib; data_cons = data
 
 (******************* LOOP **************************)
 
-let generate_stlc (size : int) = 
+let generate_stlc (fuel : int) = 
   Generate.generate_fp 
     steps
-    size
+    fuel
     ([tInt (SVar "i"); tInt Inf] --> tInt Inf)
 
-let generate_batch exp_size batch_size =
+let generate_batch fuel batch_size =
 Seq.init batch_size
            (fun _ ->
-             let p = generate_stlc exp_size in
+             let p = generate_stlc fuel in
              Debug.run prerr_newline;
              p);;
 

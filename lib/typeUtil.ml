@@ -71,6 +71,70 @@ let rec lookup_constructors (cons : data_constructor_t) (ty : size_ty) : (string
 
 (************************ SIZE ALGEBRA ***********************************)
 
+
+(* Pseudocode for reachable, produces. sigma is the target type
+
+reachable sigma t = t \subtype sigma || produces sigma t
+produces sigma t = 
+  TyArrow(doms, cod) = t
+  List.for_all (fun dom -> 
+        let dom_st = subst_size dom (t ~=~ sigma) (* SEE BELOW: substitute size variable in the domain with target size variables *)
+        exists (x:t) in Gamma . reachable dom_st t)
+    doms
+
+Example: 
+  sigma = Nat khat (* notice this uses a fresh size variable k. the stuff we've created during generation
+  is also k-sized. the library functions are i-sized, and will need substitution *)
+  Gamma = [(x : Nat khat); (x' : Nat k); (Succ : Nat i -> Nat ihat); (id : Nat i -> Nat i)]
+
+  produces sigma id = 
+    let dom_st = subst_size (Nat i) i **khat** = Nat khat
+    exists (x : Nat khat) in Gamma . reachable (Nat khat) (Nat khat)
+
+  produces sigma Succ = 
+    let dom_st = subst_size (Nat i) i **k** = Nat k 
+    exists (x' : Nat k) in Gamma . reachable (Nat k) (Nat k) *)
+  
+  (* both (id x) and (Succ x') are ways to produce sigma.
+  the issue: how did i identify khat and k for the substitution below?
+  by comparing codomains
+  1. i ~=~ khat -> khat
+  2. ihat ~=~ khat -> k
+
+  (* return type:
+  first element : string = name of size variable in the context
+  second elemnt : sexp = size expression in the function's type to substitute
+  *)
+  let (~=~) sexp target = 
+    match (sexp, target) with
+    | _         , Inf        -> ??? (* see Inf1 below*)
+    | Inf       , _          -> None (* incompatible since the target is sized but the producer is unsized *)
+    | (SVar i)  , _          -> Some (i, target) (* note that target can be arbitrarily large *)
+    | SHat iexp , SHat kexp  -> iexp ~=~ kexp
+    | _         , _          -> None (* Example: SHat iexp, SVar k is incompatible because in our size algebra we won't be able to deconstruct k when we need to unhat i eventually *)
+
+
+  Inf1: if we're trying to produce something of size Inf but we want to call a recursive function,
+    we still need to provide SOME sized value of the same datatype, but we don't care what. so we
+    could just pick one of the available sized types in the context
+
+  TODO: do some more examples to prove this works before coding
+  *)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+(* OLD STUFF *)
 let rec substitute_size_exp (theta : size_exp) (i : string) (e : size_exp) : size_exp = 
   match theta with
   | Inf -> Inf

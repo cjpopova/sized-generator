@@ -68,9 +68,13 @@ let base_std_lib_steps (base_std_lib : (string * size_ty) list)
   steps_generator hole acc
                 Rules.std_lib_step weight generate lib_refs
 
+(* NOTE: this type filtering below could be more efficient 
+I could remove the is_same_ty check if this case is dedicated soly to functions/applications
+  however would hve to make sure constants in the std_lib getpassed into base_std_lib case
+*)
 let std_lib_steps (std_lib_m : (string * size_ty) list)
                    weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
-  let lib_refs = List.filter_map (* NOTE: this type filtering could be more efficient *)
+  let lib_refs = List.filter_map 
     (fun ref -> let (_, ty) = ref in
       if (TypeUtil.is_same_ty hole.ty ty) || (TypeUtil.ty_produces hole.ty ty) then (Some ref) else None)
     std_lib_m in
