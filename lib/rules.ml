@@ -2,7 +2,7 @@ open Exp;;
 
 let var_step (_ : generate_t) (_ : hole_info) (var : var) =
   fun () ->
-  Debug.run (fun () -> Printf.eprintf ("creating var reference\n"));
+  Debug.run (fun () -> Printf.eprintf ("creating var reference: %s\n") (show_var var));
   Var var
 
 (* Creates a lambda *)
@@ -10,7 +10,7 @@ let func_constructor_step (generate : generate_t) (hole : hole_info) =
   match hole.ty with
   | TyArrow (ty_params, ty') ->
      fun () ->
-     Debug.run (fun () -> Printf.eprintf ("creating lambda\n"));
+     Debug.run (fun () -> Printf.eprintf ("creating lambda (Ty=%s) \n") (show_size_ty hole.ty));
      let xs = List.map (fun t -> Exp.new_var t) ty_params in
      let body_hole = { hole with ty=ty'; env=xs@hole.env } in
      Exp.Lambda (xs, generate body_hole)
@@ -41,7 +41,7 @@ let firstorder_application (generate : generate_t) (hole : hole_info) (name : st
   (* std_lib references, including direct references and applications *)
 let std_lib_step (generate : generate_t) (hole : hole_info) ((name, ty) : (string * Exp.size_ty))  =
   fun () ->
-  Debug.run (fun () -> Printf.eprintf ("creating std_lib reference %d\n") hole.fuel);
+  Debug.run (fun () -> Printf.eprintf ("creating std_lib reference: %s\n") name);
   if TypeUtil.is_same_ty hole.ty ty then
     ExtRef (name, ty)
   else 
@@ -59,10 +59,19 @@ let indir_call_ref_step (generate : generate_t) (hole : hole_info) (var : Exp.va
 let case_step (generate : generate_t) (hole : hole_info) 
               ((var, constructors) : var * (string * size_ty list) list) =
   fun () ->
-    Debug.run (fun () -> Printf.eprintf ("creating case\n"));
+    Debug.run (fun () -> Printf.eprintf ("creating case with %s\n") (show_var var));
     let params : var list list = 
       List.map 
-      (fun (_, ty_params) -> List.map (fun ty -> Exp.new_var ty) ty_params)
+      (fun (_, ty_params) -> 
+        List.map (fun ty -> 
+          (* NOTE: would be more efficient to return the substitution from TypeUtils & pass the result of the call in
+          generators.ml into here *)
+          (match TypeUtil.size_exp_helper (SHat (SVar "i")) (TypeUtil.size_exp_of_ty var.var_ty) with (* assume that constructors in library have size ihat*)
+          | None -> raise (Util.Impossible (Format.sprintf "case_step: help"))
+          | Some (iexp, kexp) ->
+            let dom_st = TypeUtil.subst_size_of_ty ty iexp kexp in
+            Exp.new_var dom_st))
+          ty_params)
       constructors in
     let clause_bodies =   
       List.map 

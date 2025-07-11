@@ -55,6 +55,7 @@ type hole_info = {
     depth : int;
     ty : size_ty
 }
+[@@deriving show]
 
 type rule_urn = (unit -> exp) Urn.t
 and generate_t = hole_info -> exp

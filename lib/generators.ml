@@ -49,7 +49,7 @@ let letrec_steps weight (generate : hole_info -> exp) (hole : hole_info) (acc : 
 
 let indir_call_ref_step weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
   let gamma_refs : var list = List.filter
-    (fun v -> TypeUtil.ty_produces hole.ty v.var_ty) hole.env in 
+    (fun v -> TypeUtil.ty_produces hole.ty v.var_ty hole.env) hole.env in 
   steps_generator hole acc
                   Rules.indir_call_ref_step weight generate gamma_refs
 
@@ -76,20 +76,23 @@ let std_lib_steps (std_lib_m : (string * size_ty) list)
                    weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
   let lib_refs = List.filter_map 
     (fun ref -> let (_, ty) = ref in
-      if (TypeUtil.is_same_ty hole.ty ty) || (TypeUtil.ty_produces hole.ty ty) then (Some ref) else None)
+      if (TypeUtil.is_same_ty hole.ty ty) || (TypeUtil.ty_produces hole.ty ty hole.env) then (Some ref) else None)
     std_lib_m in
   (* Debug.run (fun () -> Printf.eprintf ("std_lib_steps filtered refs: %s\n") 
     (List.fold_left (fun acc (name, _) -> name ^ " " ^ acc) "" lib_refs)); *)
   steps_generator hole acc
                 Rules.std_lib_step weight generate lib_refs
 
-(* NOTE: for now, we allow only variables (any variables) to be at the head of `case` *)
+(* NOTE: for now, we allow only variables with a size-hat to be at the head of `case` *)
 let case_steps (data_cons : data_constructor_t)
                    weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
   let var_constructors : (var * ((string * size_ty list) list)) list = 
-    List.map 
-      (fun var -> (var, TypeUtil.lookup_constructors data_cons var.var_ty))
-      hole.env in
+    (List.filter_map 
+      (fun var -> 
+        match var.var_ty with 
+        | TyCons (_, _, SHat _) -> Some (var, TypeUtil.lookup_constructors data_cons var.var_ty)
+        | _ -> None)
+      hole.env) in
   steps_generator hole acc
                 Rules.case_step weight generate var_constructors
 

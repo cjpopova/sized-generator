@@ -1,18 +1,5 @@
 open Exp
-
-(********************* LIBRARY *************************)
-let (-->) ty_params ty_body = TyArrow (ty_params, ty_body)
-let tInt sexp = TyCons ("Int", [], sexp)
-let tBool = TyCons ("Bool", [], Inf)
-
-let data_constructors : data_constructor_t = [
-    {ty=tBool; constructors=[("true", []); ("false", [])]};
-    {ty=tInt (SHat(SVar "i"));  constructors=["Zero", []; ("Succ", [tInt (SVar "i")])]}
-  ]  
-
-let std_lib = 
-  [("(+)",    [tInt (SVar "i"); tInt Inf] --> tInt Inf);
-   ("(-)",    [tInt (SVar "i"); tInt Inf] --> tInt (SVar "i"));]
+open Library
 
 let steps : generators_t = (Generators.main {std_lib = std_lib; data_cons = data_constructors})
 
@@ -22,7 +9,8 @@ let generate_stlc (fuel : int) =
   Generate.generate_fp 
     steps
     fuel
-    ([tInt (SVar "i"); tInt Inf] --> tInt Inf)
+    (* ([tInt (SHat (SVar "k")); tInt Inf] --> tInt  (SVar "k")) (* target type *) 8:30PM this type isn't sound, so the generator should crash ... *)
+    (tInt (SHat (SVar "K")))
 
 let generate_batch fuel batch_size =
 Seq.init batch_size
@@ -32,6 +20,7 @@ Seq.init batch_size
              p);;
 
 let () = 
-  Debug.debug_mode := true;;
+  Debug.debug_mode := true;
+  Printf.eprintf ("\n");
 Seq.iter (fun e -> PrettyPrinter.pretty_print e data_constructors) (generate_batch 5 1)
 

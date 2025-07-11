@@ -26,7 +26,7 @@ let rec string_of_ty (ty : Exp.size_ty) =
 
 let pprint_prog (ppf : Format.formatter) (prog : Exp.exp) (data_cons : Exp.data_constructor_t) : unit =
   let print_bnd (x : Exp.var) (_ : int) (acc : string list) =
-    ("["^(x.var_name)^":"^string_of_ty x.var_ty^"]") :: acc
+    ("["^(x.var_name)^":"^Exp.show_size_ty x.var_ty^"]") :: acc
   in
   let print_bnds = print_lst print_bnd [" "] in
   let rec print_e (e : Exp.exp) (tab_i : int) (acc : string list) : string list =

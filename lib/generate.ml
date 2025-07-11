@@ -30,6 +30,7 @@ let generate_fp (steps : generators_t) (size : int) (ty : size_ty) : exp = (* th
         fuel = if hole.fuel > 0 then hole.fuel - 1 else 0;
         depth = hole.depth+1
       } in
+      Debug.run (fun () -> Printf.eprintf ("generate_exp: %s\n") (show_hole_info hole));
       generate_exp (List.map (fun s -> s generate_exp_wrapper) steps) hole
     in
   try
