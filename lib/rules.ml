@@ -17,7 +17,7 @@ let func_constructor_step (generate : generate_t) (hole : hole_info) =
   | _ -> fun () ->
          raise (Util.Impossible "function constructor on non-function type")
 
-(* Creates a letrec (named function with recursive call)*)
+(* Creates a funrec (named function with recursive call) *)
 let letrec_constructor_step (generate : generate_t) (hole : hole_info) =
   match hole.ty with
   | TyArrow (ty_params, ty') ->
@@ -30,22 +30,6 @@ let letrec_constructor_step (generate : generate_t) (hole : hole_info) =
   | _ -> fun () ->
          raise (Util.Impossible "letrec constructor on non-function type")
 
-(* NOTE: this could be reused for indir_call_ref_step if you're smarter*)
-let firstorder_application (generate : generate_t) (hole : hole_info) (name : string) (ty : Exp.size_ty) = 
-  match ty with
-  | TyArrow (ty_params, _) -> (* single order assumes that the codomain is hole.ty. eg we can get to the target type in a single arrow*)
-    let args = List.map (fun t -> generate { hole with ty=t}) ty_params in
-    Exp.App (ExtRef (name, ty), args)
-  | _ -> raise (Util.Impossible "higher order application on non-function type")
-
-  (* std_lib references, including direct references and applications *)
-let std_lib_step (generate : generate_t) (hole : hole_info) ((name, ty) : (string * Exp.size_ty))  =
-  fun () ->
-  Debug.run (fun () -> Printf.eprintf ("creating std_lib reference: %s\n") name);
-  if TypeUtil.is_same_ty hole.ty ty then
-    ExtRef (name, ty)
-  else 
-    firstorder_application generate hole name ty
 
 let indir_call_ref_step (generate : generate_t) (hole : hole_info) (var : Exp.var) =
   fun () ->
@@ -55,6 +39,38 @@ let indir_call_ref_step (generate : generate_t) (hole : hole_info) (var : Exp.va
     let args = List.map (fun t -> generate { hole with ty=t}) ty_params in
     Exp.App (Exp.Var var, args)
   | _ -> raise (Util.Impossible "indir_call_ref_step on non-function type")
+
+
+
+(* NOTE: this could be reused for indir_call_ref_step if you're smarter*)
+let firstorder_application (generate : generate_t) (hole : hole_info) (name : string) (ty : Exp.size_ty) = 
+  match ty with
+  | TyArrow (ty_params, _) -> (* single order assumes that the codomain is hole.ty. eg we can get to the target type in a single arrow*)
+    let args = List.map (fun t -> generate { hole with ty=t}) ty_params in
+    Exp.App (ExtRef (name, ty), args)
+  | _ -> raise (Util.Impossible "higher order application on non-function type")
+
+let call_std_lib_step (generate : generate_t) (hole : hole_info) ((name, ty) : (string * Exp.size_ty))  =
+  fun () ->
+  Debug.run (fun () -> Printf.eprintf ("creating call std_lib reference: %s\n") name);
+  firstorder_application generate hole name ty
+let std_lib_step (_ : generate_t) (_ : hole_info) ((name, ty) : (string * Exp.size_ty))  =
+  fun () ->
+  Debug.run (fun () -> Printf.eprintf ("creating std_lib reference: %s\n") name);
+  ExtRef (name, ty)
+
+let constructor_step (generate : generate_t) (hole : hole_info) ((name, ty_params) : (string * size_ty list)) =
+  fun () ->
+  Debug.run (fun () -> Printf.eprintf ("creating constructor reference: %s\n") name);
+  let args = List.map (fun t -> generate { hole with ty=t}) ty_params in
+  App(ExtRef(name, hole.ty), args)
+
+let base_constructor_step (_ : generate_t) (hole : hole_info) (name : string) =
+  fun () ->
+  Debug.run (fun () -> Printf.eprintf ("creating base constructor reference: %s\n") name);
+  App(ExtRef(name, hole.ty), [])
+
+
 
 let case_step (generate : generate_t) (hole : hole_info) 
               ((var, constructors) : var * (string * size_ty list) list) =
@@ -66,7 +82,7 @@ let case_step (generate : generate_t) (hole : hole_info)
         List.map (fun ty -> 
           (* NOTE: would be more efficient to return the substitution from TypeUtils & pass the result of the call in
           generators.ml into here *)
-          (match TypeUtil.size_exp_helper (SHat (SVar "i")) (TypeUtil.size_exp_of_ty var.var_ty) with (* assume that constructors in library have size ihat*)
+          (match TypeUtil.unify_size_exp (SHat (SVar "i")) (TypeUtil.size_exp_of_ty var.var_ty) with (* assume that constructors in library have size ihat*)
           | None -> raise (Util.Impossible (Format.sprintf "case_step: help"))
           | Some (iexp, kexp) ->
             let dom_st = TypeUtil.subst_size_of_ty ty iexp kexp in

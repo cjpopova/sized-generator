@@ -22,7 +22,7 @@ type exp =
   | Lambda of ((var list) * exp)
   | App of (exp * (exp list))
   | Letrec of (var * (var list) * exp) (*  (letrec ([f (λ (params) body)]) f)  *)
-  | ExtRef of string * size_ty
+  | ExtRef of string * size_ty (* the size_ty isn't ever used *)
   | Case of exp * size_ty * ((var list * exp) list) (* case e \tau of { (x ... -> e_1) ... } *)
 [@@deriving show]
 

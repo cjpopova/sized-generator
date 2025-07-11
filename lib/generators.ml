@@ -35,53 +35,76 @@ let var_steps weight (generate : hole_info -> exp) (hole : hole_info) (acc : rul
   steps_generator hole acc
                   Rules.var_step weight generate ref_vars
 
+(* NOTE: make this distinct from letrec
+*)
 let lambda_steps weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
   match hole.ty with
   | TyArrow _ ->
     singleton_generator weight Rules.func_constructor_step hole acc generate
   | _ -> acc
 
+(* TODO: We need to "size up" the type signature before generating the body so the arguments can be deconstructed *)
 let letrec_steps weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
   match hole.ty with
-  | TyArrow _ ->
+  | TyArrow (ty_params, _) ->
+    if List.exists (fun ty -> Inf != TypeUtil.size_exp_of_ty ty) ty_params then (* At least one sized argument *)
     singleton_generator weight Rules.letrec_constructor_step hole acc generate
+    else acc
   | _ -> acc
 
+(* TODO: check arguments are available *)
 let indir_call_ref_step weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
   let gamma_refs : var list = List.filter
-    (fun v -> TypeUtil.ty_produces hole.ty v.var_ty hole.env) hole.env in 
+    (fun v -> TypeUtil.ty_produces v.var_ty hole.ty hole.env) hole.env in 
   steps_generator hole acc
                   Rules.indir_call_ref_step weight generate gamma_refs
 
-(* NOTE could be improved: The next 2 rules are different wrappers around std_lib_step. 
-1. base_data_steps includes the base constructor steps (eg true, false, 0, [], leaf)
-2. std_lib_steps includes the std_lib combined (in main) with the non-base constructors of data type (eg Succ, cons, node)
-*)
+let std_lib_steps (std_lib_m : (string * size_ty) list)
+                   weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
+  let lib_refs = List.filter_map 
+    (fun ref -> let (_, ty) = ref in
+      if (TypeUtil.ty_produces ty hole.ty hole.env) then (Some ref) else None)
+    std_lib_m in
+  (* Debug.run (fun () -> Printf.eprintf ("std_lib_steps filtered refs: %s\n") 
+    (List.fold_left (fun acc (name, _) -> name ^ " " ^ acc) "" lib_refs)); *)
+  steps_generator hole acc
+                Rules.call_std_lib_step weight generate lib_refs
+
 let base_std_lib_steps (base_std_lib : (string * size_ty) list)
                        weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
   let lib_refs = List.filter_map
     (fun ref -> let (_, ty) = ref in
-      if (TypeUtil.is_same_ty hole.ty ty) then (Some ref) else None)
+      if (TypeUtil.is_same_ty ty hole.ty) then (Some ref) else None)
     base_std_lib in
   (* Debug.run (fun () -> Printf.eprintf ("std_lib_steps filtered refs: %s\n") 
     (List.fold_left (fun acc (name, _) -> name ^ " " ^ acc) "" lib_refs)); *)
   steps_generator hole acc
                 Rules.std_lib_step weight generate lib_refs
 
-(* NOTE: this type filtering below could be more efficient 
-I could remove the is_same_ty check if this case is dedicated soly to functions/applications
-  however would hve to make sure constants in the std_lib getpassed into base_std_lib case
-*)
-let std_lib_steps (std_lib_m : (string * size_ty) list)
+let constructor_steps (data_cons : data_constructor_t)
                    weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
-  let lib_refs = List.filter_map 
-    (fun ref -> let (_, ty) = ref in
-      if (TypeUtil.is_same_ty hole.ty ty) || (TypeUtil.ty_produces hole.ty ty hole.env) then (Some ref) else None)
-    std_lib_m in
-  (* Debug.run (fun () -> Printf.eprintf ("std_lib_steps filtered refs: %s\n") 
-    (List.fold_left (fun acc (name, _) -> name ^ " " ^ acc) "" lib_refs)); *)
+  let constructors : (string * size_ty list) list = List.fold_left
+    (fun acc {ty=ty; constructors=cons} -> 
+      Debug.run (fun () -> Printf.eprintf ("ty_produces~: %s %s\n") (show_size_ty ty) (show_size_ty hole.ty));
+      if (TypeUtil.ty_produces ty hole.ty hole.env) then cons@acc else acc)
+    []
+    data_cons in
   steps_generator hole acc
-                Rules.std_lib_step weight generate lib_refs
+                Rules.constructor_step weight generate constructors
+
+let base_constructor_steps (base_data_cons : data_constructor_t)
+                       weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
+  let names : string list = List.fold_left
+    (fun acc {ty=ty; constructors=cons} -> 
+      if (TypeUtil.is_same_ty ty hole.ty) then (List.map (fun (name, _) -> name) cons) @acc else acc)
+    []
+    base_data_cons in
+  (* Debug.run (fun () -> Printf.eprintf ("std_lib_steps filtered names: %s\n") 
+    (List.fold_left (fun acc (name, _) -> name ^ " " ^ acc) "" names)); *)
+  steps_generator hole acc
+                Rules.base_constructor_step weight generate names
+
+
 
 (* NOTE: for now, we allow only variables with a size-hat to be at the head of `case` *)
 let case_steps (data_cons : data_constructor_t)
@@ -101,14 +124,21 @@ let case_steps (data_cons : data_constructor_t)
 
 let main (lib : library) : generators_t =
   let { std_lib=std_lib; data_cons=data_cons} = lib in 
-  let std_lib=TypeUtil.recur_constructors_to_std_lib data_cons @ std_lib in
-  let base_std_lib=TypeUtil.base_constructors_to_std_lib data_cons in
+  let (base_std_lib, call_std_lib) = List.partition (fun (_, ty) -> match ty with TyCons _ -> true | _ -> false ) std_lib in
+  let (base_data_cons, data_cons) = List.fold_left
+    (fun (base_acc, recur_acc) {ty=ty; constructors=constructors} -> 
+      let (base, recur) = List.partition (fun cc -> List.is_empty (snd cc)) constructors in
+      ({ty=ty; constructors=base}::base_acc, {ty=ty; constructors=recur}::recur_acc))
+    ([], [])
+    data_cons in
   [
     var_steps                       ( w_const 2.        );
-    lambda_steps                    ( w_fuel_base 10. 1. );
+    lambda_steps                    ( w_fuel_base 5. 1. );
     indir_call_ref_step             ( w_fuel_base 2. 1. );
     letrec_steps                    ( w_fuel_base 4. 1. );
-    base_std_lib_steps base_std_lib           ( w_const 1.        ); (* base constructors always available*)
-    std_lib_steps std_lib           ( w_fuel_base 1. 0. ); (* recursive constructors & the rest of std_lib require >0 fuel *)
-    case_steps data_cons            ( w_fuel_base 4. 0. ); (* NOTE: not sure about weight *)
+    std_lib_steps call_std_lib      ( w_fuel_base 1. 0. );
+    base_std_lib_steps base_std_lib ( w_const 1.        );
+    constructor_steps data_cons     ( w_fuel_base 1. 0. );
+    base_constructor_steps base_data_cons ( w_const 1.  );
+    case_steps data_cons            ( w_fuel_base 3. 0. );
   ]

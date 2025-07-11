@@ -31,22 +31,23 @@ let rec ($<=) (sexp1 : size_exp) (sexp2 : size_exp) : bool =
     | (SVar _) -> false
     | (SHat e2) -> e1 $<= e2
 
-  (* input:
+  (*  SEE NOTES at the bottom of this file
+  input:
   sexp = size expression of the (maybe function)'s codomain
   target = size expression of the target type
   return type:
   first element = name of size variable in the context (LHS)
   second element size expression in the function's type to substitute in (RHS)
   *)
-let rec size_exp_helper sexp target = 
+let rec unify_size_exp sexp target = 
     match (sexp, target) with
-    | _         , Inf        -> raise (Util.Impossible "size_exp_helper: INF1 CASE")  (* see Inf1 below*)
+    | _         , Inf        -> raise (Util.Impossible "unify_size_exp: INF1 CASE")  (* see Inf1 notes below*)
     | Inf       , _          -> None (* incompatible since the target is sized but the producer is unsized *)
     | (SVar i)  , _          -> Some (i, target) (* note that target can be arbitrarily large *)
-    | SHat iexp , SHat kexp  -> size_exp_helper iexp kexp
+    | SHat iexp , SHat kexp  -> unify_size_exp iexp kexp
     | _         , _          -> None (* Example: SHat iexp, SVar k is incompatible because in our size algebra we won't be able to deconstruct k when we need to unhat i eventually *)
 
-(* TODO: eventually i should be an size_exp not just a string*)
+(* NOTE: eventually `i` should be an size_exp not just a string*)
 let rec subst_size_exp (sexp : size_exp) (i : string) (e : size_exp) : size_exp = 
   match sexp with
   | Inf -> Inf
@@ -82,7 +83,7 @@ ty_produces maybe target (env : env) =
   | TyArrow (doms, cod) -> 
     is_same_ty cod target (* this part doesn't care about size variable names*)
     && List.for_all (fun dom ->
-      match size_exp_helper (size_exp_of_ty cod) (size_exp_of_ty target) with (* usage of size_exp_of_ty constrains this to first-order*)
+      match unify_size_exp (size_exp_of_ty cod) (size_exp_of_ty target) with (* usage of size_exp_of_ty constrains this to first-order*)
       | None -> false
       | Some (iexp, kexp) ->
         let dom_st = subst_size_of_ty dom iexp kexp in
@@ -94,58 +95,31 @@ and reachable maybe t env = is_same_ty maybe t || (ty_produces maybe t env)
 
 (********************** CONSTRUCTORS **********************************)
 
-(* NOTE: could be improved. these are cached in generators.main
-
-Returns the std_lib form of *base* datatype constructors, or ones that require no
-recursive arguments.
-Example (TO TEST): [{ty=tInt;  constructors=["Zero", []; ("Succ", [tInt])]}] -> ["Zero", tyInt]
-*)
-let base_constructors_to_std_lib (cons : data_constructor_t) : (string * size_ty) list = 
-  List.fold_left
-    (fun acc {ty=ty; constructors=constructors} -> 
-      List.filter_map 
-      (fun cc -> if List.is_empty (snd cc) then Some(fst cc, ty) else None)
-      constructors
-      @ acc)
-    []
-    cons
-
-(* Same as base_constructors_to_std_lib, but for recursive constructors (eg Succ) *)
-let recur_constructors_to_std_lib (cons : data_constructor_t) : (string * size_ty) list = 
-  List.fold_left
-    (fun acc {ty=ty; constructors=constructors} -> 
-      List.filter_map 
-      (fun cc -> if List.is_empty (snd cc) then None else Some(fst cc, ty)) (* TODO this should produce a function type*)
-      constructors
-      @ acc)
-    []
-    cons
-
 (* get the constructors of a given type *)
 let rec lookup_constructors (cons : data_constructor_t) (ty : size_ty) : (string * size_ty list) list =
   match cons with
   | [] -> (match ty with
-    | TyCons (name, _, _) -> raise (Util.Impossible (Format.sprintf "lookup: constructors not found: %s" name))
-    | TyArrow _ ->  raise (Util.Impossible "lookup: constructors not found "))
+    | TyCons (name, _, _) -> raise (Util.Impossible (Format.sprintf "lookup_constructors: can't find: %s" name))
+    | TyArrow _ ->  raise (Util.Impossible "lookup_constructors: called with function type"))
   | {ty=t; constructors=constructors} :: rst ->
     if is_same_ty t ty then constructors else lookup_constructors rst ty
 
 (************************ SIZE ALGEBRA ***********************************)
-    (* Pseudocode for reachable, produces. sigma is the target type
+(* Pseudocode for reachable, produces. sigma is the target type
 
 reachable sigma t = is_same_ty t sigma || (produces sigma t)
 produces sigma t = 
   TyArrow(doms, cod) = t
   is_same_ty cod sigma && (* this part doesn't care about size variable names*)
   List.for_all (fun dom -> 
-        let dom_st = subst_size dom (t ~=~ sigma) (* SEE BELOW: substitute size variable in the domain with target size variables *)
+        let dom_st = subst_size dom (unify t sigma) (* SEE BELOW: substitute size variable in the domain with target size variables *)
         exists (x:t) in Gamma . reachable dom_st t)
     doms
 
 Example: 
   sigma = Nat khat (* notice this uses a fresh size variable k. the stuff we've created during generation
   is also k-sized. the library functions are i-sized, and will need substitution *)
-  Gamma = [(x : Nat khat); (x' : Nat k); (Succ : Nat i -> Nat ihat); (id : Nat i -> Nat i)]
+  Gamma = [(x : Nat khat); (x' : Nat k); (Zero : forall i, Nat ihat); (Succ : forall i, Nat i -> Nat ihat); (id : forall i, Nat i -> Nat i)]
 
   (* both (id x) and (Succ x') are ways to produce sigma: *)
   produces sigma id = 
@@ -154,49 +128,14 @@ Example:
 
   produces sigma Succ = 
     let dom_st = subst_size (Nat i) i **k** = Nat k 
-    exists (x' : Nat k) in Gamma . reachable (Nat k) (Nat k) *)
+    exists (x' : Nat k) in Gamma . reachable (Nat k) (Nat k) 
   
-  (* The issue: how did i identify khat and k for the substitution below?
-  by comparing codomains
-  1. i ~=~ khat -> khat
-  2. ihat ~=~ khat -> k
+  unify i khat = (i, khat)
+  unify ihat khat = (i, k) (* note that (ihat, khat) isn't the BEST answer because it doesn't tell you how to substitute occurences of i sans hat*)
 
-  (* input:
-  sexp = size expression of the maybe function's codomain
-  target = size expression of the target type
-
-  return type:
-  first element : string = name of size variable in the context (LHS)
-  second element : sexp = size expression in the function's type to substitute in (RHS)
-  *)
-  let (~=~) sexp target = 
-    match (sexp, target) with
-    | _         , Inf        -> ??? (* see Inf1 below*)
-    | Inf       , _          -> None (* incompatible since the target is sized but the producer is unsized *)
-    | (SVar i)  , _          -> Some (i, target) (* note that target can be arbitrarily large *)
-    | SHat iexp , SHat kexp  -> iexp ~=~ kexp
-    | _         , _          -> None (* Example: SHat iexp, SVar k is incompatible because in our size algebra we won't be able to deconstruct k when we need to unhat i eventually *)
-
-
-  Inf1: if we're trying to produce something of size Inf but we want to call a recursive function,
+    Inf1: if we're trying to produce something of size Inf but we want to call a recursive function,
     we still need to provide SOME sized value of the same datatype, but we don't care what. so we
     could just pick one of the compatible available sized types in the context
     this clause will never happen in the CASE rule below because we're always picking something sized for the head of the CASE
     but it may happen for other scenarios. for now assume we're just going generate size preserving function
-
-  ----------------------------------------
-
-  CASE RULE
-  let head:var = {_; ty= Nat khat} (* we select something sized from the context for the head of the case *)
-  data_cons = ["Zero", []; ("Succ", [tInt (SVar "i")])]
-  when we generate the variables for the context of the clauses, we need a (tInt SVar "k") for the Succ case
-  so we'd do
-  let Some(iexp,kexp) = constructor.codomain ~=~ khat
-  let params = Exp.new_var (subst_size constructor.dom iexp kexp) (* ignore list stuff*)
-
-
-  observations:
-  - we're trying to preserve an invariant that the target type is always sized with variables we can generate
-  - reduces to the same issue as the application like Harry was saying :') 
-
   *)
