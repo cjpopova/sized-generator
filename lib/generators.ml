@@ -52,7 +52,19 @@ let letrec_steps weight (generate : hole_info -> exp) (hole : hole_info) (acc : 
     else acc
   | _ -> acc
 
-(* TODO: check arguments are available *)
+let fresh_call_ref_step weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
+  (* pick some random subset of Gamma. at least variable must be a sized constructor 
+  NOTE for now, we'll allow unary functions of any sized variable in the environment
+  *)
+  let args = List.filter (fun var -> match var.var_ty with 
+    | TyCons(_, _, SHat _) -> true 
+    | TyCons(_, _, SVar _) -> true 
+    | _ -> false)
+    hole.env in
+  steps_generator hole acc
+                  Rules.fresh_call_ref_step weight generate args
+
+(* Application TODO: check arguments are available *)
 let indir_call_ref_step weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
   let gamma_refs : var list = List.filter
     (fun v -> TypeUtil.ty_produces v.var_ty hole.ty hole.env) hole.env in 
@@ -134,8 +146,9 @@ let main (lib : library) : generators_t =
   [
     var_steps                       ( w_const 2.        );
     lambda_steps                    ( w_fuel_base 5. 1. );
-    indir_call_ref_step             ( w_fuel_base 2. 1. );
     letrec_steps                    ( w_fuel_base 4. 1. );
+    fresh_call_ref_step             ( w_fuel_base 2. 0. );
+    indir_call_ref_step             ( w_fuel_base 2. 1. );
     std_lib_steps call_std_lib      ( w_fuel_base 1. 0. );
     base_std_lib_steps base_std_lib ( w_const 1.        );
     constructor_steps data_cons     ( w_fuel_base 1. 0. );

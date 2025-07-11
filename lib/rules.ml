@@ -5,6 +5,8 @@ let var_step (_ : generate_t) (_ : hole_info) (var : var) =
   Debug.run (fun () -> Printf.eprintf ("creating var reference: %s\n") (show_var var));
   Var var
 
+
+
 (* Creates a lambda *)
 let func_constructor_step (generate : generate_t) (hole : hole_info) =
   match hole.ty with
@@ -30,6 +32,14 @@ let letrec_constructor_step (generate : generate_t) (hole : hole_info) =
   | _ -> fun () ->
          raise (Util.Impossible "letrec constructor on non-function type")
 
+
+(* Construct an application of a fresh function to existing arguments *)
+let fresh_call_ref_step (generate : generate_t) (hole : hole_info) (args : var) = (* NOTE: this is unary *)
+  fun () ->
+  Debug.run (fun () -> Printf.eprintf ("creating fresh call reference (%s)\n") (show_var args));
+  let func_ty = TyArrow([args.var_ty], hole.ty) in (* TODO: do something fun with the types (see 7-11 meeting note)*)
+  let func_hole = {hole with ty=func_ty} in
+  App(generate func_hole, List.map (fun v -> Var v) [args])
 
 let indir_call_ref_step (generate : generate_t) (hole : hole_info) (var : Exp.var) =
   fun () ->
