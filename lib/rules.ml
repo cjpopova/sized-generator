@@ -37,13 +37,14 @@ let letrec_constructor_step (generate : generate_t) (hole : hole_info) =
 let fresh_call_ref_step (generate : generate_t) (hole : hole_info) (args : var) = (* NOTE: this is unary *)
   fun () ->
   Debug.run (fun () -> Printf.eprintf ("creating fresh call reference (%s)\n") (show_var args));
+  (* TODO: do we need to fresh size variables in the function type? *)
   let func_ty = TyArrow([args.var_ty], hole.ty) in (* TODO: do something fun with the types (see 7-11 meeting note)*)
   let func_hole = {hole with ty=func_ty} in
   App(generate func_hole, List.map (fun v -> Var v) [args])
 
-let indir_call_ref_step (generate : generate_t) (hole : hole_info) (var : Exp.var) =
+let indir_call_ref_step (generate : generate_t) (hole : hole_info) (var, ty : Exp.var * size_ty) =
   fun () ->
-  match var.var_ty with
+  match ty with
   | TyArrow (ty_params, _) -> 
     Debug.run (fun () -> Printf.eprintf ("creating INDIR call reference (%s)\n") (var.var_name));
     let args = List.map (fun t -> generate { hole with ty=t}) ty_params in
@@ -69,11 +70,14 @@ let std_lib_step (_ : generate_t) (_ : hole_info) ((name, ty) : (string * Exp.si
   Debug.run (fun () -> Printf.eprintf ("creating std_lib reference: %s\n") name);
   ExtRef (name, ty)
 
-let constructor_step (generate : generate_t) (hole : hole_info) ((name, ty_params) : (string * size_ty list)) =
+let recur_constructor_step (generate : generate_t) (hole : hole_info) (name, ty : string * size_ty) =
   fun () ->
-  Debug.run (fun () -> Printf.eprintf ("creating constructor reference: %s\n") name);
-  let args = List.map (fun t -> generate { hole with ty=t}) ty_params in
-  App(ExtRef(name, hole.ty), args)
+  match ty with
+  | TyArrow (ty_params, _) -> (* single order assumes that the codomain is hole.ty. eg we can get to the target type in a single arrow*)
+    Debug.run (fun () -> Printf.eprintf ("creating constructor reference: %s\n") name);
+    let args = List.map (fun t -> generate { hole with ty=t}) ty_params in
+    App(ExtRef(name, hole.ty), args)
+  | _ -> raise (Util.Impossible "recur_constructor_step on non-function type")
 
 let base_constructor_step (_ : generate_t) (hole : hole_info) (name : string) =
   fun () ->
@@ -83,24 +87,17 @@ let base_constructor_step (_ : generate_t) (hole : hole_info) (name : string) =
 
 
 let case_step (generate : generate_t) (hole : hole_info) 
-              ((var, constructors) : var * (string * size_ty list) list) =
+              (var, {ty=t_hat; constructors=constructors} : var * data_info) =
   fun () ->
     Debug.run (fun () -> Printf.eprintf ("creating case with %s\n") (show_var var));
-    let params : var list list = 
-      List.map 
-      (fun (_, ty_params) -> 
-        List.map (fun ty -> 
-          (* NOTE: would be more efficient to return the substitution from TypeUtils & pass the result of the call in
-          generators.ml into here *)
-          (match TypeUtil.unify_size_exp (SHat (SVar "i")) (TypeUtil.size_exp_of_ty var.var_ty) with (* assume that constructors in library have size ihat*)
-          | None -> raise (Util.Impossible (Format.sprintf "case_step: help"))
-          | Some (iexp, kexp) ->
-            let dom_st = TypeUtil.subst_size_of_ty ty iexp kexp in
-            Exp.new_var dom_st))
-          ty_params)
-      constructors in
+    let new_binders : var list list = 
+      List.map (fun (_, ty_params) ->
+      match TypeUtil.ty_unify_producer (TyArrow(ty_params, t_hat)) hole.ty with (* turn constructor into a function to check reachable *)
+      | Some TyArrow(subst_ty_params, _) -> List.map (fun dom_ty -> Exp.new_var dom_ty) subst_ty_params
+      | _ -> raise (Util.Impossible (Format.sprintf "case_step: help")))
+      constructors in 
     let clause_bodies =   
       List.map 
       (fun plst -> generate { hole with env=plst@hole.env})
-      params in
-    Exp.Case(Var var, var.var_ty, List.combine params clause_bodies)
+      new_binders in
+    Exp.Case(Var var, var.var_ty, List.combine new_binders clause_bodies)

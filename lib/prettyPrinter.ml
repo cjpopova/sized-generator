@@ -1,3 +1,4 @@
+open Exp;;
 
 let tab =
   let tab_table = Hashtbl.create 10 in
@@ -51,7 +52,7 @@ let pprint_prog (ppf : Format.formatter) (prog : Exp.exp) (data_cons : Exp.data_
       name :: acc
     | Case (e, ty, clauses) -> (* (match e [(D x ...) e_1)] ... ) *)
       let print_bnds vars = print_lst print_bnd [" "] vars tab_i1 in
-      let constructors = TypeUtil.lookup_constructors data_cons ty in
+      let {ty=_; constructors=constructors} = TypeUtil.lookup_constructors data_cons ty in
       let str_clauses = List.fold_right2 (fun (vars, body) (cname, _) acc ->
         let body_str = ("\n"^tab tab_i1)::(print_e body tab_i1 ("]"::acc)) in
         ("\n"^tab tab_i1)::("[("^cname)::(print_bnds vars (")"::body_str)))

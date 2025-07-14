@@ -39,13 +39,28 @@ let rec ($<=) (sexp1 : size_exp) (sexp2 : size_exp) : bool =
   first element = name of size variable in the context (LHS)
   second element size expression in the function's type to substitute in (RHS)
   *)
+type unificationResult =
+  | UAny
+  | USome of string * size_exp
+  | UNone
+
 let rec unify_size_exp sexp target = 
     match (sexp, target) with
-    | _         , Inf        -> raise (Util.Impossible "unify_size_exp: INF1 CASE")  (* see Inf1 notes below*)
-    | Inf       , _          -> None (* incompatible since the target is sized but the producer is unsized *)
-    | (SVar i)  , _          -> Some (i, target) (* note that target can be arbitrarily large *)
+    | _         , Inf        -> UAny (* see Inf1 notes below*)
+    | (SVar i)  , _          -> USome (i, target) (* note that target can be arbitrarily large *)
     | SHat iexp , SHat kexp  -> unify_size_exp iexp kexp
-    | _         , _          -> None (* Example: SHat iexp, SVar k is incompatible because in our size algebra we won't be able to deconstruct k when we need to unhat i eventually *)
+    | _         , _          -> UNone 
+    (* Example: SHat iexp, SVar k is incompatible because in our size algebra: we won't be able to deconstruct k when we need to unhat i eventually 
+
+--------------------------------
+substitution/unification resources
+- leo's blockchain paper w/ unsubstitution (UNHELPFUL)
+- https://en.wikipedia.org/wiki/Unification_(computer_science)
+- https://www.csd.uwo.ca/~mmorenom/cs2209_moreno/read/read6-unification.pdf // unification and substitution
+- unification algorithm in GG (generating good generators)
+- https://dl.acm.org/doi/pdf/10.1145/357162.357169 (linked from wikipedia, For first-order syntactical unification, Martelli and Montanari[5])
+
+    *)
 
 (* NOTE: eventually `i` should be an size_exp not just a string*)
 let rec subst_size_exp (sexp : size_exp) (i : string) (e : size_exp) : size_exp = 
@@ -64,7 +79,22 @@ let size_exp_of_ty ty =
   | TyCons(_, _, sexp) -> sexp
   | _ -> raise (Util.Impossible (Format.sprintf "size_exp_of_ty: called on function: %s" (show_size_ty ty)))
 
+
+
 (*********************** TYPE COMPARISON ******************************)
+
+(* compare size_tys without size expression comparison *)
+let rec is_same_flatty maybe target = 
+  match (maybe, target) with
+  | (TyCons (name1, _, _), TyCons (name2, _, _)) ->
+    name1 = name2
+    (* && sexp1 $<= sexp2 allows size subtyping *)
+  | (TyArrow (doms1, cod1), TyArrow (doms2, cod2)) -> 
+    List.length doms1 = List.length doms2
+    && List.for_all2 is_same_flatty doms2 doms1 (* flipped for subtyping *)
+    && is_same_flatty cod1 cod2
+  | (_, _) -> false
+
 
 let rec is_same_ty maybe target = (* type-equal? *) (*CJP: todo add subtyping*)
   match (maybe, target) with
@@ -76,33 +106,42 @@ let rec is_same_ty maybe target = (* type-equal? *) (*CJP: todo add subtyping*)
     && List.for_all2 is_same_ty doms2 doms1 (* flipped for subtyping *)
     && is_same_ty cod1 cod2
   | (_, _) -> false
-and
-(* is maybe a function type that produces target? TODO NOT higher order*)
-ty_produces maybe target (env : env) =
+
+(* unify function with its target by making size variable substitution to the function *)
+and ty_unify_producer maybe target =
   match maybe with
   | TyArrow (doms, cod) -> 
-    is_same_ty cod target (* this part doesn't care about size variable names*)
-    && List.for_all (fun dom ->
-      match unify_size_exp (size_exp_of_ty cod) (size_exp_of_ty target) with (* usage of size_exp_of_ty constrains this to first-order*)
-      | None -> false
-      | Some (iexp, kexp) ->
-        let dom_st = subst_size_of_ty dom iexp kexp in
-        List.exists (fun var -> reachable var.var_ty dom_st env) env
-      )
-      doms
-  | _ -> false
-and reachable maybe t env = is_same_ty maybe t || (ty_produces maybe t env)
+    if is_same_ty cod target then (* this part doesn't care about size variable names*)
+    (match unify_size_exp (size_exp_of_ty cod) (size_exp_of_ty target) with (* usage of size_exp_of_ty constrains this to first-order*)
+      | UAny -> None (* TODO: check if arguments are available *)
+      | USome (iexp, kexp) -> 
+        let doms_st = List.map (fun dom -> subst_size_of_ty dom iexp kexp) doms in
+      Some (TyArrow(doms_st, subst_size_of_ty cod iexp kexp))
+      | UNone -> None)
+      else None
+  | _ -> None
+(* if `maybe` is a function type that produces target AND are arguments available in the environment,
+  returns size-substituted `maybe` 
+  NOTE: NOT higher order*)
+and ty_produces maybe target (env : env) =
+  match ty_unify_producer maybe target with
+  | Some TyArrow (doms, cod) -> 
+    if List.for_all (fun dom -> (List.exists (fun var -> reachable var.var_ty dom env) env)) doms
+      then Some (TyArrow(doms, cod))
+      else None
+  | _ -> None
+and reachable maybe t env = is_same_ty maybe t || Option.is_some (ty_produces maybe t env)
 
 (********************** CONSTRUCTORS **********************************)
 
 (* get the constructors of a given type *)
-let rec lookup_constructors (cons : data_constructor_t) (ty : size_ty) : (string * size_ty list) list =
+let rec lookup_constructors (cons : data_constructor_t) (ty : size_ty) : data_info =
   match cons with
   | [] -> (match ty with
     | TyCons (name, _, _) -> raise (Util.Impossible (Format.sprintf "lookup_constructors: can't find: %s" name))
     | TyArrow _ ->  raise (Util.Impossible "lookup_constructors: called with function type"))
   | {ty=t; constructors=constructors} :: rst ->
-    if is_same_ty t ty then constructors else lookup_constructors rst ty
+    if is_same_flatty t ty then {ty=t; constructors=constructors} else lookup_constructors rst ty
 
 (************************ SIZE ALGEBRA ***********************************)
 (* Pseudocode for reachable, produces. sigma is the target type
