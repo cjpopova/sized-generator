@@ -4,7 +4,7 @@ open Exp;;
 
 (* get the size variable from a size expression
 this is the |_s_| procedure from Barthe Tutorial p. 43 *)
-let rec size_var_of_sexp sexp = 
+(* let rec size_var_of_sexp sexp = 
   match sexp with
   | Inf -> None
   | SVar _ -> Some sexp
@@ -17,7 +17,7 @@ let rec size_var_of_ty ty =
     List.fold_left 
     (fun acc ty -> if Option.is_some acc then acc else size_var_of_ty ty)
     None
-    ty_params
+    ty_params *)
 
 (* size_exp comparison*)
 let rec ($<=) (sexp1 : size_exp) (sexp2 : size_exp) : bool = 
@@ -74,6 +74,8 @@ let rec subst_size_of_ty (theta : size_ty) (i : string) (e : size_exp) : size_ty
   | TyCons(name, params, sexp) -> TyCons(name, params, subst_size_exp sexp i e)
   | TyArrow(doms, cod) -> TyArrow(List.map (fun ty -> subst_size_of_ty ty i e) doms, subst_size_of_ty cod i e)
 
+(* returns the size expression of the type
+NOTE: assumes first-order *)
 let size_exp_of_ty ty =
   match ty with
   | TyCons(_, _, sexp) -> sexp
@@ -142,6 +144,12 @@ let rec lookup_constructors (cons : data_constructor_t) (ty : size_ty) : data_in
     | TyArrow _ ->  raise (Util.Impossible "lookup_constructors: called with function type"))
   | {ty=t; constructors=constructors} :: rst ->
     if is_same_flatty t ty then {ty=t; constructors=constructors} else lookup_constructors rst ty
+
+(*********************** MORE HELPERS *********************************)
+
+(* TODO: generalize size_up 
+for now, cheat and assume substitution [k:=khat]*)
+let size_up_ty ty = subst_size_of_ty ty "k" (SHat (SVar "k"))
 
 (************************ SIZE ALGEBRA ***********************************)
 (* Pseudocode for reachable, produces. sigma is the target type

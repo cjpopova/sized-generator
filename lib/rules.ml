@@ -9,7 +9,7 @@ let var_step (_ : generate_t) (_ : hole_info) (var : var) =
 
 (* Creates a lambda *)
 let func_constructor_step (generate : generate_t) (hole : hole_info) =
-  match hole.ty with
+  match TypeUtil.size_up_ty hole.ty with
   | TyArrow (ty_params, ty') ->
      fun () ->
      Debug.run (fun () -> Printf.eprintf ("creating lambda (Ty=%s) \n") (show_size_ty hole.ty));
@@ -91,10 +91,10 @@ let case_step (generate : generate_t) (hole : hole_info)
   fun () ->
     Debug.run (fun () -> Printf.eprintf ("creating case with %s\n") (show_var var));
     let new_binders : var list list = 
-      List.map (fun (_, ty_params) ->
-      match TypeUtil.ty_unify_producer (TyArrow(ty_params, t_hat)) hole.ty with (* turn constructor into a function to check reachable *)
+      List.map (fun (name, ty_params) ->
+      match TypeUtil.ty_unify_producer (TyArrow(ty_params, t_hat)) var.var_ty with (* turn constructor into a function to check reachable *)
       | Some TyArrow(subst_ty_params, _) -> List.map (fun dom_ty -> Exp.new_var dom_ty) subst_ty_params
-      | _ -> raise (Util.Impossible (Format.sprintf "case_step: help")))
+      | _ -> raise (Util.Impossible (Format.sprintf "case_step: unification issue with %s" name)))
       constructors in 
     let clause_bodies =   
       List.map 

@@ -43,7 +43,6 @@ let lambda_steps weight (generate : hole_info -> exp) (hole : hole_info) (acc : 
     singleton_generator weight Rules.func_constructor_step hole acc generate
   | _ -> acc
 
-(* TODO: We need to "size up" the type signature before generating the body so the arguments can be deconstructed *)
 let letrec_steps weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
   match hole.ty with
   | TyArrow (ty_params, _) ->
@@ -129,7 +128,6 @@ let base_constructor_steps (base_data_cons : data_constructor_t)
 (* NOTE: for now, we allow only variables with a size-hat to be at the head of `case` *)
 let case_steps (data_cons : data_constructor_t)
                    weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
-  Debug.run (fun () -> Printf.eprintf ("case_steps\n")) ;
   let var_constructors : (var * data_info) list = 
     (List.filter_map 
       (fun var -> 
@@ -147,7 +145,7 @@ let main (lib : library) : generators_t =
   let { std_lib=std_lib; data_cons=data_cons} = lib in 
   (* partition std_lib and data_cons into base (value) and callable (function) *)
   let (base_std_lib, call_std_lib) = List.partition (fun (_, ty) -> match ty with TyCons _ -> true | _ -> false ) std_lib in
-  let (base_data_cons, data_cons) = List.fold_left
+  let (base_data_cons, recur_data_cons) = List.fold_left
     (fun (base_acc, recur_acc) {ty=ty; constructors=constructors} -> 
       let (base, recur) = List.partition (fun cc -> List.is_empty (snd cc)) constructors in
       ({ty=ty; constructors=base}::base_acc, {ty=ty; constructors=recur}::recur_acc))
@@ -161,7 +159,7 @@ let main (lib : library) : generators_t =
     indir_call_ref_step             ( w_fuel_base 2. 1. );
     std_lib_steps call_std_lib      ( w_fuel_base 1. 0. );
     base_std_lib_steps base_std_lib ( w_const 1.        );
-    recur_constructor_steps data_cons     ( w_fuel_base 1. 0. );
+    recur_constructor_steps recur_data_cons     ( w_fuel_base 1. 0. );
     base_constructor_steps base_data_cons ( w_const 1.  );
     case_steps data_cons            ( w_fuel_base 3. 0. );
   ]

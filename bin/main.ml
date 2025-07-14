@@ -18,6 +18,8 @@ Seq.init batch_size
            (fun _ ->
              let p = generate_stlc fuel in
              Debug.run prerr_newline;
+             Debug.run (fun () -> Printf.eprintf "==================");
+             Debug.run prerr_newline;
              p);;
 
 let () = 
