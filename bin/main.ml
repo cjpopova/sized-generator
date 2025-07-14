@@ -9,10 +9,9 @@ let generate_stlc (fuel : int) =
   Generate.generate_fp 
     steps
     fuel (* target type: *)
-    (* ([tInt (SHat (SVar "k")); tInt Inf] --> tInt  (SVar "k")) *)
-    (* above type isn't sound, so the generator should crash ... *)
-    (tInt (SHat (SVar "K")))
-    (* (tInt Inf) *)
+    ([tNat (SVar "k"); tNat Inf] --> tNat  (SVar "k"))
+    (* (tNat (SHat (SVar "K"))) *)
+    (* (tNat Inf) *)
 
 let generate_batch fuel batch_size =
 Seq.init batch_size
@@ -24,5 +23,5 @@ Seq.init batch_size
 let () = 
   Debug.debug_mode := true;
   Printf.eprintf ("\n");
-Seq.iter (fun e -> PrettyPrinter.pretty_print e data_constructors) (generate_batch 5 1)
+Seq.iter (fun e -> PrettyPrinter.pretty_print e data_constructors) (generate_batch 5 10)
 
