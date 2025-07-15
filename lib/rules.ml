@@ -21,11 +21,12 @@ let func_constructor_step (generate : generate_t) (hole : hole_info) =
 
 (* Creates a funrec (named function with recursive call) *)
 let letrec_constructor_step (generate : generate_t) (hole : hole_info) =
-  match hole.ty with
+  let hat_func = TypeUtil.size_up_ty hole.ty in 
+  match hat_func with
   | TyArrow (ty_params, ty') ->
      fun () ->
      Debug.run (fun () -> Printf.eprintf ("creating letrec\n"));
-     let f = Exp.new_var hole.ty in
+     let f = Exp.new_var hole.ty in (*this should NOT have extra hats in the body *)
      let xs = List.map (fun t -> Exp.new_var t) ty_params in
      let body_hole = { hole with ty=ty'; env=f::xs@hole.env } in
      Exp.Letrec (f, xs, generate body_hole)

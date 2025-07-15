@@ -26,3 +26,9 @@ to debug:
 ```
 OCAMLRUNPARAM=b dune exec -- palka_stlc
 ```
+or:
+```
+dune utop lib
+open DebugLibrary;;
+generate_exp_wrapper <hole>
+```
