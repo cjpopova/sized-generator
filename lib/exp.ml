@@ -7,12 +7,26 @@ type size_exp = (* size algebra *)
   | Inf
   | SVar of string
   | SHat of size_exp
-[@@deriving show]
 
 type size_ty = (* sized types*)
   | TyCons of string * (flat_ty list) * size_exp (* NOTE: parameter types are unsized *)
   | TyArrow of size_ty list * size_ty
-[@@deriving show]
+
+(***** PRINTERS ******)
+let rec show_size_exp sexp =
+  match sexp with
+  | Inf -> "Inf"
+  | SVar v -> v
+  | SHat e -> show_size_exp e ^ "^"
+let pp_size_exp fmt sexp = Format.fprintf fmt "%s" (show_size_exp sexp)
+
+let rec show_size_ty ty = 
+  match ty with
+  | TyCons (name, _, sexp) -> name ^ " " ^ show_size_exp sexp
+  | TyArrow(doms, cod) ->
+     List.fold_right (fun ty acc -> show_size_ty ty ^ " " ^ acc) doms "" 
+     ^ "--> " ^ show_size_ty cod
+let pp_size_ty fmt ty = Format.fprintf fmt "%s" (show_size_ty ty)
 
 (***************************************************************************************************************)
 
@@ -24,7 +38,7 @@ type exp =
   | Letrec of (var * (var list) * exp) (*  (letrec ([f (λ (params) body)]) f)  *)
   | ExtRef of string * size_ty (* the size_ty isn't ever used *)
   | Case of exp * size_ty * ((var list * exp) list) (* case e \tau of { (x ... -> e_1) ... } *)
-[@@deriving show]
+(* [@@deriving show] *)
 
 and var = {
   var_name : string;
