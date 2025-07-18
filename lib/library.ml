@@ -1,6 +1,6 @@
 open Exp
 
-let (-->) ty_params ty_body = TyArrow (ty_params, ty_body)
+let (-->) ty_params ty_body = TyArrow (Some (SVar "i"), ty_params, ty_body) (* all constructors and std_lib are quantified over i*)
 let tNat sexp = TyCons ("Nat", [], sexp)
 let tBool = TyCons ("Bool", [], Inf)
 

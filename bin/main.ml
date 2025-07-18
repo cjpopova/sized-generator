@@ -9,7 +9,7 @@ let generate_stlc (fuel : int) =
   Generate.generate_fp 
     steps
     fuel (* target type: *)
-    ([tNat (SVar "k"); tNat Inf] --> tNat  (SVar "k"))
+    (TyArrow(Some (SVar "k"), [tNat (SVar "k"); tNat Inf], tNat (SVar "k")))
     (* (tNat (SHat (SVar "K"))) *)
     (* (tNat Inf) *)
 

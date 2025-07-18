@@ -8,9 +8,11 @@ type size_exp = (* size algebra *)
   | SVar of string
   | SHat of size_exp
 
+type quantifier = size_exp option (* only SVars *)
+
 type size_ty = (* sized types*)
   | TyCons of string * (flat_ty list) * size_exp (* NOTE: parameter types are unsized *)
-  | TyArrow of size_ty list * size_ty
+  | TyArrow of quantifier * size_ty list * size_ty
 
 (***** PRINTERS ******)
 let rec show_size_exp sexp =
@@ -23,9 +25,13 @@ let pp_size_exp fmt sexp = Format.fprintf fmt "%s" (show_size_exp sexp)
 let rec show_size_ty ty = 
   match ty with
   | TyCons (name, _, sexp) -> name ^ " " ^ show_size_exp sexp
-  | TyArrow(doms, cod) ->
-     List.fold_right (fun ty acc -> show_size_ty ty ^ " " ^ acc) doms "" 
-     ^ "--> " ^ show_size_ty cod
+  | TyArrow(quant, doms, cod) ->
+     (match quant with 
+     | Some str -> "∀"^(show_size_exp str)^"."
+     | None -> "")
+     ^
+     List.fold_right (fun ty acc -> show_size_ty ty ^ " -> " ^ acc) doms "" 
+     ^ "-> " ^ show_size_ty cod
 let pp_size_ty fmt ty = Format.fprintf fmt "%s" (show_size_ty ty)
 
 (***************************************************************************************************************)
@@ -91,4 +97,4 @@ let reset_s_var_counter () = s_var_counter := 0
 let new_s_var _ =
   let x = !s_var_counter in
   incr s_var_counter;
-  SVar ("x" ^ Int.to_string x)
+  SVar ("i" ^ Int.to_string x)
