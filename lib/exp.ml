@@ -54,20 +54,15 @@ and var = {
 and env = var list
 [@@deriving show]
 
-type data_info = { 
-    ty : size_ty; 
-    constructors : (string * size_ty list) list
-    (* case be extended w/ size information, like whether it's sized or
-    what its size variable is *)
-}
+
+type func_list = (string * size_ty) list
 [@@deriving show]
-
-type data_constructor_t = data_info list
-
+type data_constructors_t = func_list list
 type library = {
     std_lib : (string * size_ty) list;
-    data_cons : data_constructor_t
+    data_cons : data_constructors_t
 }
+
 
 type hole_info = {
     fuel : int;

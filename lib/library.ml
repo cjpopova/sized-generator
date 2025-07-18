@@ -4,10 +4,11 @@ let (-->) ty_params ty_body = TyArrow (Some (SVar "i"), ty_params, ty_body) (* a
 let tNat sexp = TyCons ("Nat", [], sexp)
 let tBool = TyCons ("Bool", [], Inf)
 
-let data_constructors : data_constructor_t = [
-    {ty=tBool; constructors=[("true", []); ("false", [])]};
-    {ty=tNat (SHat(SVar "i"));  constructors=["Zero", []; ("Succ", [tNat (SVar "i")])]}
-  ]  
+let data_constructors : data_constructors_t = [
+    ["true", [] --> tBool; 
+     "false", [] --> tBool ];
+    ["Zero", [] --> tNat (SHat(SVar "i"));
+     "Succ", [tNat (SVar "i")] --> tNat (SHat(SVar "i"))]]
 
 let std_lib = 
   [("(+)",    [tNat (SVar "i"); tNat Inf] --> tNat Inf);

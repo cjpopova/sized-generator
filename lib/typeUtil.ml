@@ -134,7 +134,7 @@ Another example with Inf:
   Since anything can produce Inf size, the size of the arguments also reduces to Inf.
   
 
-  
+
 
 Unification examples:
   unify i khat = (i, khat)
@@ -196,10 +196,13 @@ and reachable t env = List.exists
 (********************** CONSTRUCTORS **********************************)
 
 (* get the constructors of a given type *)
-let rec lookup_constructors (cons : data_constructor_t) (ty : size_ty) : data_info =
+let rec lookup_constructors (cons : data_constructors_t) (ty : size_ty) : func_list =
   match cons with
   | [] -> (match ty with
     | TyCons (name, _, _) -> raise (Util.Impossible (Format.sprintf "lookup_constructors: can't find: %s" name))
     | TyArrow _ ->  raise (Util.Impossible "lookup_constructors: called with function type"))
-  | {ty=t; constructors=constructors} :: rst ->
-    if is_same_flatty t ty then {ty=t; constructors=constructors} else lookup_constructors rst ty
+  | flst :: rst ->
+    match flst with 
+    | (_, TyArrow(_, _, t)) :: _ ->
+      if is_same_flatty t ty then flst else lookup_constructors rst ty
+    | _ -> raise (Util.Impossible "lookup_constructors: impossible")

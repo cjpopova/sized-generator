@@ -18,7 +18,7 @@ let rec print_lst (print : 'a -> int -> string list -> string list) (sep : strin
     | [] -> acc
     | z :: zs -> print z tab_i (sep @ (print_lst print sep zs tab_i acc))
 
-let pprint_prog (ppf : Format.formatter) (prog : Exp.exp) (data_cons : Exp.data_constructor_t) : unit =
+let pprint_prog (ppf : Format.formatter) (prog : Exp.exp) (data_cons : Exp.data_constructors_t) : unit =
   let print_bnd (x : Exp.var) (_ : int) (acc : string list) =
     ("["^(x.var_name)^":"^Exp.show_size_ty x.var_ty^"]") :: acc
   in
@@ -45,7 +45,7 @@ let pprint_prog (ppf : Format.formatter) (prog : Exp.exp) (data_cons : Exp.data_
       name :: acc
     | Case (e, ty, clauses) -> (* (match e [(D x ...) e_1)] ... ) *)
       let print_bnds vars = print_lst print_bnd [" "] vars tab_i1 in
-      let {ty=_; constructors=constructors} = TypeUtil.lookup_constructors data_cons ty in
+      let constructors = TypeUtil.lookup_constructors data_cons ty in
       let str_clauses = List.fold_right2 (fun (vars, body) (cname, _) acc ->
         let body_str = ("\n"^tab tab_i1)::(print_e body tab_i1 ("]"::acc)) in
         ("\n"^tab tab_i1)::("[("^cname)::(print_bnds vars (")"::body_str)))
@@ -56,7 +56,7 @@ let pprint_prog (ppf : Format.formatter) (prog : Exp.exp) (data_cons : Exp.data_
     Format.fprintf ppf "%s" (String.concat "" (print_e prog 0 []))
       
 
-let pretty_print (prog : Exp.exp) (data_cons : Exp.data_constructor_t) : unit =
+let pretty_print (prog : Exp.exp) (data_cons : Exp.data_constructors_t) : unit =
   print_string("\n");
   pprint_prog Format.std_formatter prog data_cons;
   print_string("\n")

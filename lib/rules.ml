@@ -73,20 +73,20 @@ let recur_constructor_step (generate : generate_t) (hole : hole_info) (name, ty 
     App(ExtRef(name, hole.ty), args)
   | _ -> raise (Util.Impossible "recur_constructor_step on non-function type")
 
-let base_constructor_step (_ : generate_t) (hole : hole_info) (name : string) =
+let base_constructor_step (_ : generate_t) (hole : hole_info) (name , _ : string * size_ty) =
   fun () ->
   Debug.run (fun () -> Printf.eprintf ("creating base constructor reference: %s\n") name);
-  App(ExtRef(name, hole.ty), [])
+  ExtRef(name, hole.ty)
 
 
 
 let case_step (generate : generate_t) (hole : hole_info) 
-              (var, {ty=t_hat; constructors=constructors} : var * data_info) =
+              (var, constructors : var * func_list) =
   fun () ->
     Debug.run (fun () -> Printf.eprintf ("creating case with %s\n") (show_var var));
     let new_binders : var list list = 
-      List.map (fun (name, ty_params) ->
-      match TypeUtil.ty_unify_producer (TyArrow(Some (SVar "i"), ty_params, t_hat)) var.var_ty with (* turn constructor into a function to check reachable *)
+      List.map (fun (name, constructor_ty) ->
+      match TypeUtil.ty_unify_producer constructor_ty var.var_ty with (* turn constructor into a function to check reachable *)
       | Some TyArrow(_, subst_ty_params, _) -> List.map (fun dom_ty -> Exp.new_var dom_ty) subst_ty_params
       | _ -> raise (Util.Impossible (Format.sprintf "case_step: unification issue with %s" name)))
       constructors in 

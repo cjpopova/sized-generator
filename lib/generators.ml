@@ -118,6 +118,7 @@ let indir_call_ref_step weight (generate : hole_info -> exp) (hole : hole_info) 
   steps_generator hole acc
                   Rules.indir_call_ref_step weight generate gamma_refs
 
+(* application of function from std_lib with arguments from the environment (analagous to INDIR above) *)
 let std_lib_steps (std_lib_m : (string * size_ty) list)
                    weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
    Debug.run (fun () -> Printf.eprintf "considering std_lib\n"); 
@@ -132,62 +133,56 @@ let std_lib_steps (std_lib_m : (string * size_ty) list)
   steps_generator hole acc
                 Rules.call_std_lib_step weight generate lib_refs
 
-(* TODO from here down: 
-size comparison should be on unification
-(same as for recur_std_lib)
-but honestly i dont think function is getting called
-i don't think recur constructors is getting called either
+(* values from std_lib
+TODO: there are no values in std_lib to actually test this so i'm not fixing it
+The type comparison should use quantification & sizes
 *)
 let base_std_lib_steps (base_std_lib : (string * size_ty) list)
                       weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
    Debug.run (fun () -> Printf.eprintf "considering base_std_lib\n"); 
   let lib_refs = List.filter_map
     (fun ref -> let (_, ty) = ref in
-      if (TypeUtil.is_same_flatty ty hole.ty) then (Some ref) else None)
+      if (TypeUtil.is_same_flatty ty hole.ty) then (Some ref) else None) (* this is wrong*)
     base_std_lib in
   (* Debug.run (fun () -> Printf.eprintf ("std_lib_steps filtered refs: %s\n") 
     (List.fold_left (fun acc (name, _) -> name ^ " " ^ acc) "" lib_refs)); *)
   steps_generator hole acc
                 Rules.std_lib_step weight generate lib_refs
 
-let recur_constructor_steps (data_cons : data_constructor_t)
+(* helper *)
+let filter_constructors (data_cons : data_constructors_t) (hole : hole_info) : func_list =
+  let constructors = TypeUtil.lookup_constructors data_cons hole.ty in
+  List.filter_map (fun (name, constructor_ty) ->
+    match TypeUtil.ty_produces constructor_ty hole.ty hole.env with
+    | Some subst_ty -> Some(name, subst_ty)
+    | None -> None)
+    constructors 
+
+(* Call recursive constructors such as Succ or Cons. Analagous to INDIR *)
+let recur_constructor_steps (data_cons : data_constructors_t)
                    weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
    Debug.run (fun () -> Printf.eprintf "considering recur_constructor\n"); 
   match hole.ty with 
   | TyCons _ ->
-    let {ty=t_hat; constructors=constructors} = TypeUtil.lookup_constructors data_cons hole.ty in
-    let reachable_cons = List.filter_map (fun (name, ty_params) ->
-      (* TODO something bad is happening here maybe *)
-      match TypeUtil.ty_produces (TyArrow(Some (SVar "i"), ty_params, t_hat)) hole.ty hole.env with (* turn constructor into a function to check reachable *)
-      | Some subst_ty -> Some(name, subst_ty)
-      | None -> None)
-      constructors in 
     steps_generator hole acc
-                    Rules.recur_constructor_step weight generate reachable_cons
+                    Rules.recur_constructor_step weight generate (filter_constructors data_cons hole)
   | _ -> acc
 
-(* TODO: this needs to use unification*)
-let base_constructor_steps (base_data_cons : data_constructor_t)
+(* Call base constructors such as Zero or Nil. Analagous to INDIR *)
+let base_constructor_steps (base_data_cons : data_constructors_t)
                        weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
    Debug.run (fun () -> Printf.eprintf "considering base_constructor\n"); 
   match hole.ty with 
-    | TyCons _ ->
-    let names : string list = List.fold_left
-      (fun acc {ty=ty; constructors=cons} -> 
-        if (TypeUtil.is_size_subtype_ty ty hole.ty) then (List.map (fun (name, _) -> name) cons) @acc else acc)
-      []
-      base_data_cons in
-    (* Debug.run (fun () -> Printf.eprintf ("std_lib_steps filtered names: %s\n") 
-      (List.fold_left (fun acc (name, _) -> name ^ " " ^ acc) "" names)); *)
+  | TyCons _ ->
     steps_generator hole acc
-                  Rules.base_constructor_step weight generate names
+                  Rules.base_constructor_step weight generate (filter_constructors base_data_cons hole)
   | _ -> acc
 
 (* NOTE: for now, we allow only variables with a size-hat to be at the head of `case` *)
-let case_steps (data_cons : data_constructor_t)
+let case_steps (data_cons : data_constructors_t)
                    weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
    Debug.run (fun () -> Printf.eprintf "considering case\n"); 
-  let var_constructors : (var * data_info) list = 
+  let var_constructors : (var * func_list) list = 
     (List.filter_map 
       (fun var -> 
         match var.var_ty with 
@@ -205,9 +200,13 @@ let main (lib : library) : generators_t =
   (* partition std_lib and data_cons into base (value) and callable (function) *)
   let (base_std_lib, call_std_lib) = List.partition (fun (_, ty) -> match ty with TyCons _ -> true | _ -> false ) std_lib in
   let (base_data_cons, recur_data_cons) = List.fold_left
-    (fun (base_acc, recur_acc) {ty=ty; constructors=constructors} -> 
-      let (base, recur) = List.partition (fun cc -> List.is_empty (snd cc)) constructors in
-      ({ty=ty; constructors=base}::base_acc, {ty=ty; constructors=recur}::recur_acc))
+    (fun (base_acc, recur_acc) constructors -> 
+      let (base, recur) = List.partition (fun (_ , ty) -> 
+        match ty with 
+        | TyArrow(_, [], _) -> true
+        | _ -> false)
+        constructors in
+      (base::base_acc, recur::recur_acc))
     ([], [])
     data_cons in
   [
