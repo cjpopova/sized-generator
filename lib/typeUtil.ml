@@ -93,7 +93,7 @@ ty_produces
   f : _ . \tau ... -> θ (* unquantified *)
   hole : T =
 If θ ⊑ T   &&   ∀ t ∈ ty_params . reachable t (Γ \ f)
-  then Some (_ . ty_params -> θ)
+  then Some (_ . ty_params -> θ) (* no substitution necessary *)
   else None
   
 ty_produces
@@ -170,7 +170,9 @@ let rec ty_unify_producer maybe target =
   | TyArrow (Some k, doms, cod) -> (* Quantified *)
     if is_same_flatty cod target then (* before we check sizes, check the rest of the codomain type  *)
     (match unify_size_exp (size_exp_of_ty cod) (size_exp_of_ty target) with (* unify the size of the codomain*)
-      | UAny -> None (* TODO: check if arguments are available *)
+      | UAny -> 
+        let doms_st = List.map (fun dom -> resize_ty dom Inf) doms in
+        Some (TyArrow(Some k, doms_st, cod))
       | USome (iexp, kexp) ->
         let doms_st = List.map (fun dom -> subst_size_of_ty dom (SVar iexp) kexp) doms in
         let cod_st =  subst_size_of_ty cod (SVar iexp) kexp in
@@ -200,9 +202,9 @@ let rec lookup_constructors (cons : data_constructors_t) (ty : size_ty) : func_l
   match cons with
   | [] -> (match ty with
     | TyCons (name, _, _) -> raise (Util.Impossible (Format.sprintf "lookup_constructors: can't find: %s" name))
-    | TyArrow _ ->  raise (Util.Impossible "lookup_constructors: called with function type"))
+    | TyArrow _ -> [])
   | flst :: rst ->
     match flst with 
     | (_, TyArrow(_, _, t)) :: _ ->
       if is_same_flatty t ty then flst else lookup_constructors rst ty
-    | _ -> raise (Util.Impossible "lookup_constructors: impossible")
+    | _ -> []

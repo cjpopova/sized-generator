@@ -10,6 +10,14 @@ let data_constructors : data_constructors_t = [
     ["Zero", [] --> tNat (SHat(SVar "i"));
      "Succ", [tNat (SVar "i")] --> tNat (SHat(SVar "i"))]]
 
-let std_lib = 
-  [("(+)",    [tNat (SVar "i"); tNat Inf] --> tNat Inf);
-   ("(-)",    [tNat (SVar "i"); tNat Inf] --> tNat (SVar "i"));]
+let std_lib = [
+  "(+)",    [tNat (SVar "i"); tNat Inf] --> tNat Inf;
+  "(-)",    [tNat (SVar "i"); tNat Inf] --> tNat (SVar "i");
+  "idNat",  [tNat (SVar "i")] --> tNat (SVar "i"); (* not polymorphic*)
+  "odd",    [tNat Inf] --> tBool;
+  "even",   [tNat Inf] --> tBool;
+  "(&&)",   [tBool; tBool] --> tBool;
+  "(||)",   [tBool; tBool] --> tBool;
+  "not",    [tBool] --> tBool;
+  "(==)",   [tNat Inf; tNat Inf] --> tBool; (* not polymorphic*)
+  ]
