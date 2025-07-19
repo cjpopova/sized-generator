@@ -10,8 +10,9 @@ let generate_stlc (fuel : int) =
     steps
     fuel (* target type: *)
     (TyArrow(Some (SVar "k"), [tNat (SVar "k"); tNat Inf], tNat (SVar "k")))
-    (* (tNat (SHat (SVar "K"))) *)
+    (* (TyArrow(Some (SVar "k"), [tNat (SVar "k"); tNat Inf], tNat Inf)) *)
     (* (tNat Inf) *)
+    (* ([tBool] --> tBool) *)
 
 let generate_batch fuel batch_size =
 Seq.init batch_size

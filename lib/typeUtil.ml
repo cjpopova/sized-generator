@@ -155,7 +155,7 @@ type unificationResult =
 
 let rec unify_size_exp sexp target = 
     match (sexp, target) with
-    | _         , Inf        -> UAny (* see Inf1 notes below*)
+    | _         , Inf        -> UAny
     | (SVar i)  , _          -> USome (i, target) (* note that target can be arbitrarily large *)
     | SHat iexp , SHat kexp  -> unify_size_exp iexp kexp
     | _         , _          -> UNone 
