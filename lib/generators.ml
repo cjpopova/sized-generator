@@ -35,7 +35,7 @@ let w_fuel n = w_fuel_base n 0.
 Γ, x : τ ⊢ □ : T ↝ x
 *)
 let var_steps weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
-  Debug.run (fun () -> Printf.eprintf "considering var\n"); 
+  (*Debug.run (fun () -> Printf.eprintf "considering var\n"); *)
   let ref_vars = List.filter (fun v -> TypeUtil.is_size_subtype_ty v.var_ty hole.ty) hole.env in
   steps_generator hole acc
                   Rules.var_step weight generate ref_vars
@@ -43,7 +43,7 @@ let var_steps weight (generate : hole_info -> exp) (hole : hole_info) (acc : rul
 (* NOTE: make this distinct from letrec
 *)
 let lambda_steps weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
-   Debug.run (fun () -> Printf.eprintf "considering lambda\n"); 
+   (*Debug.run (fun () -> Printf.eprintf "considering lambda\n"); *)
   match hole.ty with
   | TyArrow _ ->
     singleton_generator weight Rules.func_constructor_step hole acc generate
@@ -56,7 +56,7 @@ let lambda_steps weight (generate : hole_info -> exp) (hole : hole_info) (acc : 
 Γ ⊢ □ : ∀i.(d^i τ) → θ ↝ funrec x.e
 *)
 let letrec_steps weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
-   Debug.run (fun () -> Printf.eprintf "considering letrec\n"); 
+   (*Debug.run (fun () -> Printf.eprintf "considering letrec\n"); *)
   match hole.ty with
   | TyArrow (Some _, ty_params, _) ->
     if List.exists (fun ty -> Inf != TypeUtil.size_exp_of_ty ty) ty_params then (* At least one sized argument.  TODO the sized argument should be the first one *)
@@ -84,7 +84,7 @@ We pass the following type into Rules:
 where τ was the type of the variable
 *)
 let fresh_call_ref_step weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
-   Debug.run (fun () -> Printf.eprintf "considering fresh_call\n"); 
+   (*Debug.run (fun () -> Printf.eprintf "considering fresh_call\n"); *)
   (*
 
   (var : \tau^alpha) -> ∀k.\tau^alpha --> hole.ty [alpha := k]
@@ -109,19 +109,37 @@ let fresh_call_ref_step weight (generate : hole_info -> exp) (hole : hole_info) 
 ------------------------------------------------------- (INDIR)
 Γ, x : (d^α τ_1), f : ∀k.(d^k τ_2) → θ ⊢ □ : T ↝ (f x)
 *)
-let indir_call_ref_step weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
-   Debug.run (fun () -> Printf.eprintf "considering indir_call\n"); 
+
+(* helper function for 2 different versions of INDIR:
+- non-recursive applications
+- recursive applications
+*)
+let indir_call weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn)
+                      (filter_ty : size_ty -> bool) =
   let gamma_refs : (var * size_ty) list = List.filter_map
-    (fun v -> match TypeUtil.ty_produces v.var_ty hole.ty hole.env with
-    | Some subst_tyArrow -> Some (v, subst_tyArrow)
-    | None -> None) hole.env in
+    (fun v -> if filter_ty v.var_ty 
+      then (match TypeUtil.ty_produces v.var_ty hole.ty hole.env with
+        | Some subst_tyArrow -> Some (v, subst_tyArrow)
+        | None -> None) 
+      else None)
+    hole.env in
   steps_generator hole acc
                   Rules.indir_call_ref_step weight generate gamma_refs
+
+let indir_call_ref_step weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
+   (*Debug.run (fun () -> Printf.eprintf "considering indir_call\n"); *)
+  indir_call weight generate hole acc (* quantified functions are not recursive *)
+    (fun ty -> match ty with | TyArrow(Some _, _, _) -> true | _ -> false)
+let indir_call_recur_step weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
+   (*Debug.run (fun () -> Printf.eprintf "considering indir_call\n"); *)
+  indir_call weight generate hole acc (* non-quantified functions are recursive *)
+    (fun ty -> match ty with | TyArrow(None, _, _) -> true | _ -> false)
+
 
 (* application of function from std_lib with arguments from the environment (analagous to INDIR above) *)
 let std_lib_steps (std_lib_m : (string * size_ty) list)
                    weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
-   Debug.run (fun () -> Printf.eprintf "considering std_lib\n"); 
+   (*Debug.run (fun () -> Printf.eprintf "considering std_lib\n"); *)
   let lib_refs : (string * size_ty) list = List.filter_map 
     (fun ref -> let (name, ty) = ref in
       match TypeUtil.ty_produces ty hole.ty hole.env with
@@ -139,7 +157,7 @@ The type comparison should use quantification & sizes
 *)
 let base_std_lib_steps (base_std_lib : (string * size_ty) list)
                       weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
-   Debug.run (fun () -> Printf.eprintf "considering base_std_lib\n"); 
+   (*Debug.run (fun () -> Printf.eprintf "considering base_std_lib\n"); *)
   let lib_refs = List.filter_map
     (fun ref -> let (_, ty) = ref in
       if (TypeUtil.is_same_flatty ty hole.ty) then (Some ref) else None) (* this is wrong*)
@@ -161,7 +179,7 @@ let filter_constructors (data_cons : data_constructors_t) (hole : hole_info) : f
 (* Call recursive constructors such as Succ or Cons. Analagous to INDIR *)
 let recur_constructor_steps (data_cons : data_constructors_t)
                    weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
-   Debug.run (fun () -> Printf.eprintf "considering recur_constructor\n"); 
+   (*Debug.run (fun () -> Printf.eprintf "considering recur_constructor\n"); *)
   match hole.ty with 
   | TyCons _ ->
     steps_generator hole acc
@@ -171,7 +189,7 @@ let recur_constructor_steps (data_cons : data_constructors_t)
 (* Call base constructors such as Zero or Nil. Analagous to INDIR *)
 let base_constructor_steps (base_data_cons : data_constructors_t)
                        weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
-   Debug.run (fun () -> Printf.eprintf "considering base_constructor\n"); 
+   (*Debug.run (fun () -> Printf.eprintf "considering base_constructor\n"); *)
   match hole.ty with 
   | TyCons _ ->
     steps_generator hole acc
@@ -181,7 +199,7 @@ let base_constructor_steps (base_data_cons : data_constructors_t)
 (* NOTE: for now, we allow only variables with a size-hat to be at the head of `case` *)
 let case_steps (data_cons : data_constructors_t)
                    weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
-   Debug.run (fun () -> Printf.eprintf "considering case\n"); 
+   (*Debug.run (fun () -> Printf.eprintf "considering case\n"); *)
   let var_constructors : (var * func_list) list = 
     (List.filter_map 
       (fun var -> 
@@ -211,10 +229,11 @@ let main (lib : library) : generators_t =
     data_cons in
   [
     var_steps                       ( w_const 2.        );
-    lambda_steps                    ( w_fuel_base 5. 1. );
-    letrec_steps                    ( w_fuel_base 4. 1. );
+    lambda_steps                    ( w_fuel_base 2. 1. );
+    letrec_steps                    ( w_fuel_base 3. 1. );
     fresh_call_ref_step             ( w_fuel_base 2. 0. );
     indir_call_ref_step             ( w_fuel_base 2. 1. );
+    indir_call_recur_step           ( w_fuel_base 10. 1. );
     std_lib_steps call_std_lib      ( w_fuel_base 1. 0. );
     base_std_lib_steps base_std_lib ( w_const 1.        );
     recur_constructor_steps recur_data_cons     ( w_fuel_base 1. 0. );
