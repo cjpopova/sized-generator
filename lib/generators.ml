@@ -151,16 +151,13 @@ let std_lib_steps (std_lib_m : (string * size_ty) list)
   steps_generator hole acc
                 Rules.call_std_lib_step weight generate lib_refs
 
-(* values from std_lib
-TODO: there are no values in std_lib to actually test this so i'm not fixing it
-The type comparison should use quantification & sizes
-*)
+(* values from std_lib. analagous to VAR *)
 let base_std_lib_steps (base_std_lib : (string * size_ty) list)
                       weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
    (*Debug.run (fun () -> Printf.eprintf "considering base_std_lib\n"); *)
   let lib_refs = List.filter_map
     (fun ref -> let (_, ty) = ref in
-      if (TypeUtil.is_same_flatty ty hole.ty) then (Some ref) else None) (* this is wrong*)
+      if (TypeUtil.is_size_subtype_ty ty hole.ty) then (Some ref) else None)
     base_std_lib in
   (* Debug.run (fun () -> Printf.eprintf ("std_lib_steps filtered refs: %s\n") 
     (List.fold_left (fun acc (name, _) -> name ^ " " ^ acc) "" lib_refs)); *)

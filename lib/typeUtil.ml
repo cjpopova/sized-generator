@@ -76,7 +76,7 @@ let rec gen_compare_ty maybe target (size_comp : size_exp -> size_exp -> bool) =
     && gen_compare_ty cod1 cod2 size_comp
   | (_, _) -> false
 
-let is_same_flatty maybe target = (* compare size_tys without size expression comparison *)
+let is_flat_subtype_ty maybe target = (* compare size_tys without size expression comparison *)
   gen_compare_ty maybe target (fun _ _ -> true)
 let is_size_subtype_ty maybe target = (* use size subtyping *)
   gen_compare_ty maybe target (fun sexp1 sexp2 -> sexp1 $<= sexp2)
@@ -85,29 +85,29 @@ let is_size_subtype_ty maybe target = (* use size subtyping *)
 
 (* Pseudocode (explained top down):
 
-reachable σ Γ =
-  ∃ x:τ ∈ Γ . τ ⊑ σ
-  ∨ ∃ f:τ ∈ Γ . produces f σ Γ
+reachable T Γ : bool=
+  ∃ x:τ ∈ Γ . τ ⊑ T
+  ∨ ∃ f:τ ∈ Γ . produces f T Γ
 
 ty_produces
-  f : _ . \tau ... -> θ (* unquantified *)
-  hole : T =
-If θ ⊑ T   &&   ∀ t ∈ ty_params . reachable t (Γ \ f)
-  then Some (_ . ty_params -> θ) (* no substitution necessary *)
+  (f : _ . τ ... -> θ) (* unquantified *)
+  (hole : T)
+  Γ
+  : size_ty option =
+If θ ⊑ T   &&   ∀ t ∈ τ ... . reachable t (Γ \ f)
+  then Some (_ . τ ... -> θ) (* no substitution necessary *)
   else None
   
 ty_produces
-  f : ∀k. τ ... -> θ (* quantified *)
-  hole : T =
-Find α s.t. θ[k:=α] ⊑ T (* UNIFICATION *)
-Let ty_params = τ ... [k:=α]
+  (f : ∀i. τ ... -> θ) (* quantified *)
+  (hole : T)
+  Γ
+  : size_ty option =
+Find α s.t. θ[i:=α] ⊑ T (* UNIFICATION: let (i, α) = unify θ T *)
+Let ty_params = τ ... [i:=α]
 If ∀ t ∈ ty_params . reachable t (Γ \ f)
-then Some (∀k. ty_params -> θ[k:=α])
+then Some (∀i. ty_params -> θ[i:=α])
 else None
-
-unify θ T = α
-
-
 
 
 
@@ -145,8 +145,8 @@ Unification examples:
     sexp = size expression of the (maybe function)'s codomain
     target = size expression of the target type
   return type:
-    first element = name of size variable in the context (LHS)
-    second element size expression in the function's type to substitute in (RHS)
+    i = name of size variable in the context (LHS)
+    alpha = size expression in the function's type to substitute in (RHS)
   *)
 type unificationResult =
   | UAny
@@ -168,14 +168,14 @@ let rec ty_unify_producer maybe target =
       then Some maybe
       else None
   | TyArrow (Some k, doms, cod) -> (* Quantified *)
-    if is_same_flatty cod target then (* before we check sizes, check the rest of the codomain type  *)
+    if is_flat_subtype_ty cod target then (* before we check sizes, check the rest of the codomain type  *)
     (match unify_size_exp (size_exp_of_ty cod) (size_exp_of_ty target) with (* unify the size of the codomain*)
       | UAny -> 
         let doms_st = List.map (fun dom -> resize_ty dom Inf) doms in
         Some (TyArrow(Some k, doms_st, cod))
-      | USome (iexp, kexp) ->
-        let doms_st = List.map (fun dom -> subst_size_of_ty dom (SVar iexp) kexp) doms in
-        let cod_st =  subst_size_of_ty cod (SVar iexp) kexp in
+      | USome (i, alpha) ->
+        let doms_st = List.map (fun dom -> subst_size_of_ty dom (SVar i) alpha) doms in
+        let cod_st =  subst_size_of_ty cod (SVar i) alpha in
         Some (TyArrow(Some k, doms_st, cod_st))
       | UNone -> None)
       else None
@@ -186,9 +186,9 @@ let rec ty_unify_producer maybe target =
 and ty_produces maybe target (env : env) =
   let smaller_env = List.filter (fun v -> v.var_ty != maybe) env in (* NOTE: set comprehension would be more efficient *)
   match ty_unify_producer maybe target with
-  | Some TyArrow(q, doms, cod) -> 
+  | Some TyArrow(_, doms, _) as t-> 
     if List.for_all (fun dom -> reachable dom smaller_env) doms
-      then Some (TyArrow(q, doms, cod))
+      then t
       else None
   | _ -> None
 and reachable t env = List.exists 
@@ -206,5 +206,5 @@ let rec lookup_constructors (cons : data_constructors_t) (ty : size_ty) : func_l
   | flst :: rst ->
     match flst with 
     | (_, TyArrow(_, _, t)) :: _ ->
-      if is_same_flatty t ty then flst else lookup_constructors rst ty
+      if is_flat_subtype_ty t ty then flst else lookup_constructors rst ty
     | _ -> []
