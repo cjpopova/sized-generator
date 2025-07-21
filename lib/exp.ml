@@ -1,8 +1,3 @@
-type flat_ty =
-  | FlatTyCons of string * (flat_ty list)
-  | FlatTyArrow of (flat_ty list) * flat_ty
-[@@deriving show]
-
 type size_exp = (* size algebra *)
   | Inf
   | SVar of string
@@ -11,7 +6,8 @@ type size_exp = (* size algebra *)
 type quantifier = size_exp option (* only SVars *)
 
 type size_ty = (* sized types*)
-  | TyCons of string * (flat_ty list) * size_exp (* NOTE: parameter types are unsized *)
+  | TyVar of string * size_exp
+  | TyCons of string * (size_ty list) * size_exp (* NOTE: parameter types are unsized *)
   | TyArrow of quantifier * size_ty list * size_ty
 
 (***** PRINTERS ******)
@@ -24,6 +20,7 @@ let pp_size_exp fmt sexp = Format.fprintf fmt "%s" (show_size_exp sexp)
 
 let rec show_size_ty ty = 
   match ty with
+  | TyVar (name, sexp) -> name ^ " " ^ show_size_exp sexp
   | TyCons (name, _, sexp) -> name ^ " " ^ show_size_exp sexp
   | TyArrow(quant, doms, cod) ->
      (match quant with 

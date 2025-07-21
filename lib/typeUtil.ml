@@ -21,6 +21,7 @@ let subst_size_exp_err e1 e2 e3 =
                                     (show_size_exp e3)))
 let rec subst_size_of_ty (theta : size_ty) (e1 : size_exp) (e2 : size_exp) : size_ty = 
   match theta with
+  | TyVar (name, sexp) -> TyVar(name, subst_size_exp_err sexp e1 e2)
   | TyCons(name, params, sexp) -> TyCons(name, params, subst_size_exp_err sexp e1 e2)
   | TyArrow(q, doms, cod) -> 
     TyArrow(q, List.map (fun ty -> subst_size_of_ty ty e1 e2) doms, subst_size_of_ty cod e1 e2)
@@ -30,7 +31,7 @@ NOTE: assumes first-order *)
 let size_exp_of_ty ty =
   match ty with
   | TyCons(_, _, sexp) -> sexp
-  | _ -> raise (Util.Impossible (Format.sprintf "size_exp_of_ty: called on function: %s" (show_size_ty ty)))
+  | _ -> raise (Util.Impossible (Format.sprintf "size_exp_of_ty: called on: %s" (show_size_ty ty)))
 
 (* given a function ∀k.t, return function ∀k.t[k:=khat]*)
 let size_up_ty ty = 
@@ -49,7 +50,7 @@ NOTE: first-order; higher-order version might use subst instead *)
 let resize_ty ty sexp =
   match ty with
   | TyCons(name, ty_params, _) -> TyCons(name, ty_params, sexp)
-  | _ -> raise (Util.Impossible (Format.sprintf "resize_ty: called on function: %s" (show_size_ty ty)))
+  | _ -> raise (Util.Impossible (Format.sprintf "resize_ty: called on: %s" (show_size_ty ty)))
 
 
 (*********************** TYPE COMPARISON ******************************)
@@ -64,9 +65,12 @@ let rec ($<=) (sexp1 : size_exp) (sexp2 : size_exp) : bool =
   | _, SHat e2 -> sexp1 $<= e2
   | _ -> false
 
-(* type comparison, parametrized by size comparison *)
+(* type comparison, parametrized by size comparison 
+TODO: turn this into can_unify; return string * size_ty option
+*)
 let rec gen_compare_ty maybe target (size_comp : size_exp -> size_exp -> bool) = 
   match (maybe, target) with
+  | _, TyVar _ -> true (* TODO: do size_exp comparison*)
   | (TyCons (name1, _, sexp1), TyCons (name2, _, sexp2)) ->
     name1 = name2
     && size_comp sexp1 sexp2
@@ -202,7 +206,8 @@ let rec lookup_constructors (cons : data_constructors_t) (ty : size_ty) : func_l
   match cons with
   | [] -> (match ty with
     | TyCons (name, _, _) -> raise (Util.Impossible (Format.sprintf "lookup_constructors: can't find: %s" name))
-    | TyArrow _ -> [])
+    | TyArrow _ -> []
+    | TyVar(name,_)-> raise (Util.Impossible (Format.sprintf "lookup_constructors: called on TyVar: %s" name)))
   | flst :: rst ->
     match flst with 
     | (_, TyArrow(_, _, t)) :: _ ->

@@ -9,10 +9,11 @@ let generate_stlc (fuel : int) =
   Generate.generate_fp 
     steps
     fuel (* target type: *)
-    (TyArrow(Some (SVar "k"), [tNat (SVar "k"); tNat Inf], tNat (SVar "k")))
+    (* (TyArrow(Some (SVar "k"), [tNat (SVar "k"); tNat Inf], tNat (SVar "k"))) *)
     (* (TyArrow(Some (SVar "k"), [tNat (SVar "k"); tNat Inf], tNat Inf)) *)
-    (* (tNat Inf) *)
     (* ([tBool] --> tBool) *)
+    (* ([tList i (tNat Inf)] --> tList i (tNat Inf)) *)
+    ([tList i (tNat Inf)] --> (tNat Inf)) (* this is a test of whether the generator can return the element of the list *)
 
 let generate_batch fuel batch_size =
 Seq.init batch_size
