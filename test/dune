@@ -1,2 +1,4 @@
 (test
- (name test_palka_stlc))
+ (name test_palka_stlc)
+ (preprocess (pps ppx_deriving.show ppx_deriving.ord))
+ (libraries palka_stlc alcotest))

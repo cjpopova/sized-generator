@@ -30,6 +30,7 @@ let rec subst_size_of_ty (theta : size_ty) (e1 : size_exp) (e2 : size_exp) : siz
 NOTE: assumes first-order *)
 let size_exp_of_ty ty =
   match ty with
+  | TyVar (_, sexp) -> sexp
   | TyCons(_, _, sexp) -> sexp
   | _ -> raise (Util.Impossible (Format.sprintf "size_exp_of_ty: called on: %s" (show_size_ty ty)))
 
