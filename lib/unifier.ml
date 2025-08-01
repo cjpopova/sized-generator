@@ -1,6 +1,11 @@
 open Exp
 open TypeUtil
-(* 
+
+(*
+The following code (for sizes) has been moved to TypeUtil. i am leaving this for notes
+
+
+
 I will use the style of
 https://www.cs.cornell.edu/courses/cs3110/2011sp/Lectures/lec26-type-inference/type-inference.htm
 
@@ -30,28 +35,7 @@ let apply (s : substitution) (t : size_ty) : size_ty =
 
 TODO: write better error messages when done
 *)
-let rec unify_one maybe target : substitution  = 
-  match (maybe, target) with
-  | TyVar (x, sexp), _ -> (* NOTE: pretend we're not going to unify the size here yet *)
-    if sexp $<= (size_exp_of_ty target) then [(x, target)] else raise (Util.Impossible (Format.sprintf "help1a: %s %s" (show_size_ty maybe) (show_size_ty target)))
-  | _, TyVar (x, sexp) -> (* NOTE: pretend we're not going to unify the size here yet *)
-    if (size_exp_of_ty maybe) $<= sexp then [(x, maybe)] else raise (Util.Impossible "help1b")
-  | TyCons (name1, params1, sexp1), TyCons (name2, params2, sexp2) ->
-    if name1 = name2 && sexp1 $<= sexp2 then unify (List.combine params1 params2) else raise (Util.Impossible "help2")
-  | TyArrow (_, doms1, cod1), TyArrow (_, doms2, cod2) -> 
-    if List.length doms1 = List.length doms2
-      then unify (List.combine doms2 doms1) (* flipped for subtyping *)
-          @ (unify_one cod1 cod2)
-      else raise (Util.Impossible "help3")
-  | _, _ -> raise (Util.Impossible "help4")
 
-and unify (s : (size_ty * size_ty) list) : substitution =
-  match s with 
-  | [] -> []
-  | (x, y) :: t ->
-      let t2 = unify t in
-      let t1 = unify_one (apply t2 x) (apply t2 y) in (* apply existing substitution into the current term *)
-      t1 @ t2
 
 
 (*************************************************************)
@@ -59,19 +43,19 @@ and unify (s : (size_ty * size_ty) list) : substitution =
 (* now we add sizes. *)
 
 (* old version that is one-sided somehow*)
-(* let rec unify_size_exp sexp target : string * size_exp = 
+(* let rec sexp_unifier sexp target : string * size_exp = 
     match (sexp, target) with
     | Inf       , Inf        -> ("", Inf) (* hack*)
-    | SHat iexp , Inf        -> unify_size_exp iexp Inf
+    | SHat iexp , Inf        -> sexp_unifier iexp Inf
     | SVar i    , _          -> (i, target) (* note that target can be arbitrarily large *)
-    | SHat iexp , SHat kexp  -> unify_size_exp iexp kexp
+    | SHat iexp , SHat kexp  -> sexp_unifier iexp kexp
     | _         , _          -> raise (Util.Impossible (Format.sprintf "size unification failed on %s, %s" (show_size_exp sexp) (show_size_exp target))) *)
 
-let rec unify_size_exp sexp target : size_exp * size_exp = 
+let rec sexp_unifier sexp target : size_exp * size_exp = 
     match (sexp, target) with
     | _, Inf | Inf, _ -> sexp, target (* s ⊑ ∞, including ∞^ ⊑ ∞ *)
     | SVar _, _ -> (sexp, target) (* note that target can be arbitrarily large *)
-    | SHat iexp , SHat kexp  -> unify_size_exp iexp kexp
+    | SHat iexp , SHat kexp  -> sexp_unifier iexp kexp
     | _         , _          -> raise (Util.Impossible (Format.sprintf "size unification failed on %s, %s" (show_size_exp sexp) (show_size_exp target)))
 
 
@@ -103,14 +87,14 @@ let rec unify_one_hat maybe target : substitution_hat  =
   | TyVar (x, sexp), _ ->
     (* TODO what if we check, but don't keep, the size unification? since it should be subsumed by the type unification 
       this would would probably be fine as long as we don't have size-carrying contents*)
-    {types=[(x, target)]; sizes=[unify_size_exp sexp (size_exp_of_ty target)]}  
+    {types=[(x, target)]; sizes=[sexp_unifier sexp (size_exp_of_ty target)]}  
   | _, TyVar (x, sexp) ->
-    {types=[(x, maybe)]; sizes=[unify_size_exp (size_exp_of_ty maybe) sexp]}  
+    {types=[(x, maybe)]; sizes=[sexp_unifier (size_exp_of_ty maybe) sexp]}  
   | TyCons (name1, params1, sexp1), TyCons (name2, params2, sexp2) ->
     if name1 = name2 (* this is where type-subtyping would go ... if we had any *)
       then let param_subst = unify_hat (List.combine params1 params2) in
       (* we throw out param_subst.size  because we shouldn't have sizes inside containers *)
-        {param_subst with sizes = [unify_size_exp sexp1 sexp2] } (* {param_subst with sizes = unify_size_exp sexp1 sexp2 :: param_subst.sizes} *)
+        {param_subst with sizes = [sexp_unifier sexp1 sexp2] } (* {param_subst with sizes = sexp_unifier sexp1 sexp2 :: param_subst.sizes} *)
       else raise (Util.Impossible "names don't match") (* TODO: this error will actually be raised and needs to be caught by this function's callers*)
   | TyArrow (_, doms1, cod1), TyArrow (_, doms2, cod2) -> 
     if List.length doms1 = List.length doms2

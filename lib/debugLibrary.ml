@@ -27,3 +27,5 @@ let k = SVar "k"
 let j = SVar "j"
 let khat = SHat k
 let jhat = SHat j
+
+let tBoolInf = TyCons ("Bool", [], Inf)

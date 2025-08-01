@@ -13,7 +13,7 @@ let generate_stlc (fuel : int) =
     (* (TyArrow(Some (SVar "k"), [tNat (SVar "k"); tNat Inf], tNat Inf)) *)
     (* ([tBool] --> tBool) *)
     (* ([tList i (tNat Inf)] --> tList i (tNat Inf)) *)
-    ([tList i (tNat Inf)] --> (tNat Inf)) (* this is a test of whether the generator can return the element of the list *)
+    ([tList i (tNat Inf); tList Inf (tNat Inf)] --> (tList Inf (tNat Inf))) 
 
 let generate_batch fuel batch_size =
 Seq.init batch_size

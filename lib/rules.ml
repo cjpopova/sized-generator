@@ -2,15 +2,15 @@ open Exp;;
 
 let var_step (_ : generate_t) (_ : hole_info) (var : var) =
   fun () ->
-  Debug.run (fun () -> Printf.eprintf ("creating var reference: %s\n") (show_var var));
+  Debug.run (fun () -> Printf.eprintf ("creating VAR: %s\n") (show_var var));
   Var var
 
 (* Creates a lambda *)
 let func_constructor_step (generate : generate_t) (hole : hole_info) =
   match TypeUtil.size_up_ty hole.ty with
-  | TyArrow (Some _, ty_params, ty') ->
+  | TyArrow (Q _, ty_params, ty') ->
      fun () ->
-     Debug.run (fun () -> Printf.eprintf ("creating lambda (Ty=%s) \n") (show_size_ty hole.ty));
+     Debug.run (fun () -> Printf.eprintf ("creating lambda\n"));
      let xs = List.map (fun t -> Exp.new_var t) ty_params in
      let body_hole = { hole with ty=ty'; env=xs@hole.env } in
      Exp.Lambda (xs, generate body_hole)
@@ -35,7 +35,7 @@ let letrec_constructor_step (generate : generate_t) (hole : hole_info) =
 (* Construct an application of a fresh function to existing arguments *)
 let fresh_call_ref_step (generate : generate_t) (hole : hole_info) (var, func_ty : var * size_ty) = (* NOTE: this is unary *)
   fun () ->
-  Debug.run (fun () -> Printf.eprintf ("creating fresh call reference (argument = %s)\n") (show_var var));
+  Debug.run (fun () -> Printf.eprintf ("creating APPREF (argument = %s)\n") (show_var var));
   (* TODO: do something fun with the types (see 7-11 meeting note)*)
   let func_hole = {hole with ty=func_ty} in
   App(generate func_hole, List.map (fun v -> Var v) [var])
@@ -44,7 +44,7 @@ let indir_call_ref_step (generate : generate_t) (hole : hole_info) (var, ty : Ex
   fun () ->
   match ty with
   | TyArrow (_, ty_params, _) -> 
-    Debug.run (fun () -> Printf.eprintf ("creating INDIR call reference (%s)\n") (var.var_name));
+    Debug.run (fun () -> Printf.eprintf ("creating INDIR call to %s\n") (var.var_name));
     let args = List.map (fun t -> generate { hole with ty=t}) ty_params in
     Exp.App (Exp.Var var, args)
   | _ -> raise (Util.Impossible "indir_call_ref_step on non-function type")

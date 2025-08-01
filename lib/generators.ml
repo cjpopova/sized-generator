@@ -36,7 +36,14 @@ let w_fuel n = w_fuel_base n 0.
 *)
 let var_steps weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
   (*Debug.run (fun () -> Printf.eprintf "considering var\n"); *)
-  let ref_vars = List.filter (fun v -> TypeUtil.is_size_subtype_ty v.var_ty hole.ty) hole.env in
+  let ref_vars = List.filter (fun v -> 
+    match v.var_ty with
+    | TyArrow(U _,  _, _) -> false (* NOTE: don't allow unquantified funcs to fill holes. 
+    prevents issue where APPREF's function □ is accidentally filled with a recursive call 
+    on an inappropriately sized argument. there may be better solutions but it technically
+    doesn't limit program space because indir_call_recur_step still creates valid recursive apps *)
+    | _ -> TypeUtil.is_size_subtype_ty v.var_ty hole.ty)
+    hole.env in
   steps_generator hole acc
                   Rules.var_step weight generate ref_vars
 
@@ -58,7 +65,7 @@ let lambda_steps weight (generate : hole_info -> exp) (hole : hole_info) (acc : 
 let letrec_steps weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
    (*Debug.run (fun () -> Printf.eprintf "considering letrec\n"); *)
   match hole.ty with
-  | TyArrow (Some _, ty_params, _) ->
+  | TyArrow (Q _, ty_params, _) ->
     if List.exists (fun ty -> Inf != TypeUtil.size_exp_of_ty ty) ty_params then (* At least one sized argument.  TODO the sized argument should be the first one *)
     singleton_generator weight Rules.letrec_constructor_step hole acc generate
     else acc
@@ -84,23 +91,24 @@ We pass the following type into Rules:
 where τ was the type of the variable
 *)
 let fresh_call_ref_step weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
-   (*Debug.run (fun () -> Printf.eprintf "considering fresh_call\n"); *)
-  (*
-
-  (var : \tau^alpha) -> ∀k.\tau^alpha --> hole.ty [alpha := k]
-  *)
+  match hole.ty with
+  | TyCons _ -> (* NOTE: Only allow first-order holes to be filled *)
+   (* Debug.run (fun () -> Printf.eprintf "considering fresh_call\n"); *)
   let k = new_s_var () in
-  let var_tys : (var * size_ty) list= List.filter_map (fun var -> 
-      try 
-        (* Debug.run (fun () -> Printf.eprintf "  trying subst on %s $: %s\n" var.var_name (show_size_exp (TypeUtil.size_exp_of_ty var.var_ty)));  *)
-        Some (var, 
-        TyArrow(Some k, 
+  let var_tys : (var * size_ty) list = List.filter_map (fun var -> match var.var_ty with
+    | TyCons _ -> (* NOTE: Only allow first order variables on RHS of application *)
+    (* Debug.run (fun () -> Printf.eprintf "\t%s\n" (show_var var));  *)
+    (if Option.is_some(TypeUtil.safe_subst_size_exp (TypeUtil.size_exp_of_ty hole.ty) (TypeUtil.size_exp_of_ty var.var_ty) k)
+      then Some (var, 
+        TyArrow(Q k, 
           [(TypeUtil.resize_ty var.var_ty k)], (* τ^α: replace variable's size expression with k *)
           TypeUtil.subst_size_of_ty hole.ty (TypeUtil.size_exp_of_ty var.var_ty) k)) (* T[α := k] *)
-      with _ -> None)
+      else None)
+      | _ -> None)
     hole.env in
   steps_generator hole acc
                   Rules.fresh_call_ref_step weight generate var_tys
+    | _ -> acc
 
 (* application of function w/ arguments, all from the environment 
 
@@ -129,11 +137,11 @@ let indir_call weight (generate : hole_info -> exp) (hole : hole_info) (acc : ru
 let indir_call_ref_step weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
    (*Debug.run (fun () -> Printf.eprintf "considering indir_call\n"); *)
   indir_call weight generate hole acc (* quantified functions are not recursive *)
-    (fun ty -> match ty with | TyArrow(Some _, _, _) -> true | _ -> false)
+    (fun ty -> match ty with | TyArrow(Q _, _, _) -> true | _ -> false)
 let indir_call_recur_step weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
    (*Debug.run (fun () -> Printf.eprintf "considering indir_call\n"); *)
   indir_call weight generate hole acc (* non-quantified functions are recursive *)
-    (fun ty -> match ty with | TyArrow(None, _, _) -> true | _ -> false)
+    (fun ty -> match ty with | TyArrow(U _, _, _) -> true | _ -> false)
 
 
 (* application of function from std_lib with arguments from the environment (analagous to INDIR above) *)
@@ -229,11 +237,11 @@ let main (lib : library) : generators_t =
     lambda_steps                    ( w_fuel_base 2. 1. );
     letrec_steps                    ( w_fuel_base 3. 1. );
     fresh_call_ref_step             ( w_fuel_base 2. 0. );
-    indir_call_ref_step             ( w_fuel_base 2. 1. );
-    indir_call_recur_step           ( w_fuel_base 10. 1. );
-    std_lib_steps call_std_lib      ( w_fuel_base 1. 0. );
+    indir_call_ref_step             ( w_fuel_base 1. 1. );
+    indir_call_recur_step           ( w_fuel_base 2. 1. );
+    std_lib_steps call_std_lib      ( w_fuel_base 3. 0. );
     base_std_lib_steps base_std_lib ( w_const 1.        );
-    recur_constructor_steps recur_data_cons     ( w_fuel_base 1. 0. );
+    recur_constructor_steps recur_data_cons     ( w_fuel_base 2. 0. );
     base_constructor_steps base_data_cons ( w_const 1.  );
     case_steps data_cons            ( w_fuel_base 3. 0. );
   ]
