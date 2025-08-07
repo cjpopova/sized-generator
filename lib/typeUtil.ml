@@ -16,6 +16,8 @@ base_std_lib_steps                      is_size_subtype
 RECUR_constructors                      producer unification w/ reachable 
 BASE_constructors                       producer unification (reachable is not necessary because there should be no arguments)
 -------------------------------------------------------------
+
+See below for more pseudocode: there is distinction between quantified and unquantified recursion in how unification happens.
 *)
 
 (******************* SUBSTITUTION & QUANTIFICATION ****************************)
@@ -125,7 +127,7 @@ let rec sexp_unifier sexp target : size_exp * size_exp =
     | SHat i, Inf -> sexp_unifier i Inf
     | SVar _, _ -> (sexp, target)
     | SHat iexp , SHat kexp  -> sexp_unifier iexp kexp
-    | _         , _          -> raise (Util.Impossible (Format.sprintf "size unification failed on %s, %s" (show_size_exp sexp) (show_size_exp target)))
+    | _         , _          -> raise (Util.UnificationError (Format.sprintf "size unification failed on %s, %s" (show_size_exp sexp) (show_size_exp target)))
 
 (* merge two substitutions *)
 let substitution_hat_combine (s1 : substitution_hat) (s2 : substitution_hat) : substitution_hat = 
@@ -165,8 +167,8 @@ let rec unify_one_hat maybe target : substitution_hat  =
         let doms2 = List.map (apply_hat t) doms2 in
         let doms1 = List.map (apply_hat t) doms1 in
         substitution_hat_combine (substitution_hat_flip (unify_hat (List.combine doms2 doms1))) t
-      else raise (Util.UnificationError "help3")
-  | _, _ -> raise (Util.UnificationError "help4")
+      else raise (Util.UnificationError "different number of arguments between functions")
+  | _, _ -> raise (Util.UnificationError "different terms")
 
 and unify_hat (s : (size_ty * size_ty) list) : substitution_hat =
   match s with 
@@ -176,7 +178,7 @@ and unify_hat (s : (size_ty * size_ty) list) : substitution_hat =
       let t1 = unify_one_hat (apply_hat t2 x) (apply_hat t2 y) in (* apply existing substitution into the current term *)
       substitution_hat_combine t1 t2
 
-(******************* UNIFICATION ****************************)
+(******************************* PRODUCERS *******************************)
 
 (* Pseudocode
 
@@ -204,8 +206,6 @@ reachable T Γ : bool=
     τ ⊑ T
     ∨ ∃ f:τ ∈ Γ . produces f T Γ
 *)
-
-(******************************* PRODUCERS *******************************)
 
 (* unify function with its target, and return the substituted function*)
 let rec ty_unify_producer (maybe : size_ty) (target : size_ty) : size_ty option =

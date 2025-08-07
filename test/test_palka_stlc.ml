@@ -25,6 +25,7 @@ let subst_hat = Alcotest.testable pp_substitution_hat (=)
 
 (********************************** TESTS **********************************)
 
+(*********** SUBSTITUTION ***********)
 let test_subst_size_of_ty () = 
   (* e1[e2:=e3] *)
   let input1 = [tNat i] --> tNat ihat, i, Inf in (* succ[i/∞] = ∞ --> ∞^ *)
@@ -35,8 +36,6 @@ let test_subst_size_of_ty () =
     ] in
   List.iteri (fun n ((i1, i2, i3),e) -> Alcotest.(check sizety) (string_of_int n) e (subst_size_of_ty i1 i2 i3))
     test_list
-
-(*********** SUBSTITUTION ***********)
 
 let test_safe_subst_size_exp () = 
   (* e1[e2:=e3] *)
@@ -66,17 +65,21 @@ let test_size_subtype () =
   let input2 = tList i (tNat Inf), tList k (tNat Inf) in
   let expected2 = false in
 
+  let input3 = tList i (tNat Inf), tList Inf (tNat Inf) in
+  let expected3 = true in
+
   (* NOTE: add higher order case? *)
 
   let test_list = [
     input1, expected1;
     input2, expected2;
+    input3, expected3;
     ] in
   List.iteri (fun n ((i1, i2),e) -> Alcotest.(check bool) (string_of_int n) e (is_size_subtype_ty i1 i2))
     test_list
 
 
-(*********** NEW UNIFIER SEXP UNIFICATION ***********)
+(*********** TYPE UNIFICATION ***********)
 
 let test_unify_size_exp () = 
   let input1 = (SHat Inf), Inf in
@@ -95,6 +98,65 @@ let test_unify_size_exp () =
   ] in
   List.iteri (fun n ((i1, i2),e) -> Alcotest.(check sexppair) (string_of_int n) e (sexp_unifier i1 i2))
     test_list
+
+    
+(* see possible errors in typeUtil - these boil down to sexp_unifier or uninteresting errors from the rest of unify_hat*)
+let test_unification_errors () = 
+  let input1 = tList Inf (tNat Inf), tList i (tNat Inf) in (*List ∞, List i, ~> FAIL *)
+
+  let test_list = [
+    input1;
+    ] in
+  List.iteri (fun n (maybe, target) -> Alcotest.match_raises (string_of_int n)
+    (function
+      | Util.UnificationError _ -> true
+      | _ -> false)
+    (fun _ -> let _ = unify_one_hat maybe target in ()))
+    test_list
+
+
+let test_unify_one_hat () = 
+  (* τ, □ *)
+  let input0 = tList ihat tX, tList khat tBoolInf in (* List i^ (X ∞), List k^ (Bool ∞) ~> [X=Bool, i=k]*)
+  let expected0 = { types=["X", tBoolInf]; sizes=[i, k]} in
+
+  let input1 = tList ihat tX, tList Inf tBoolInf in (* List i^ (X ∞), List k^ (Bool ∞) ~> [X=Bool, i=k]*)
+  let expected1 = { types=["X", tBoolInf]; sizes=[i, Inf]} in
+
+  let test_list = [
+    input0, expected0;
+    input1, expected1;
+    ] in
+  List.iteri (fun n ((maybe, target), e) -> Alcotest.(check subst_hat) (string_of_int n) e (unify_one_hat maybe target))
+    test_list
+
+(* let test_HO_unify_one_hat () = 
+  (* τ, □ *)
+  let input1 = [tNat Inf] --> tNat Inf, [tNat i] --> tNat i in
+  let expected1 = { types=[]; sizes=[Inf, i; Inf, i]} in (* repeated but whatever*)
+
+  let input2 = [tNat k] --> tNat k, [tNat i] --> tNat i in
+  let expected2 = { types=[]; sizes=[i, i; k, i]} in 
+
+  let test_list = [
+    input1, expected1;
+    input2, expected2;
+    ] in
+  List.iteri (fun n ((maybe, target), e) -> Alcotest.(check subst_hat) (string_of_int n) e (unify_one_hat maybe target))
+    test_list *)
+
+(*
+wishlist for polymorphic producer unification showing substitution on arguments
+  list-ref : ∀ i . Nat ∞ -> List i (X ∞) -> (X ∞)           (* i have writte the infs explicitly on the list contents *)
+
+  unify range (X ∞) with □      yields     X = Bool 
+  so now we look for 2 arguments:
+  □2 : Nat ∞
+  □3 : List i (Bool ∞)
+
+
+  cons : ∀ i . (X ∞) -> List i (X ∞) -> List i^ (X ∞)
+*)
 
 (*********** PRODUCERS ***********)
 
@@ -135,71 +197,22 @@ let test_mono_reachable_producer () =
   let input3 = [tNat i] --> tNat ihat, tNat khat, [tNat khat] in (* Succ, k^, [k^] - quantified - don't have small enough argument *)
   let expected3 = None in
 
+  let input4 = TyArrow(U k, [tNat k], tNat k), tNat Inf, [tNat i] in (* foo : k -> k, _, i  ~>   fail *)      (* unquantified recursive call on wrong size variable*)
+  let expected4 = None in
+
   let test_list = [
     input0, expected0;
     input1, expected1;
     input2, expected2;
     input3, expected3;
+    input4, expected4;
     ] in
   List.iteri (fun n ((maybe, target, ty_env),e) -> 
     let env = List.map (fun ty -> new_var ty) ty_env in (* turn types into vars for environment *)
     Alcotest.(check sizetyopt) (string_of_int n) e (ty_produces maybe target env))
     test_list
 
-(*********** NEW UNIFIER MODULE ***********)
-
-let test_unify_one_hat () = 
-  (* τ, □ *)
-  let input0 = tList ihat tX, tList khat tBoolInf in (* List i^ (X ∞), List k^ (Bool ∞) ~> [X=Bool, i=k]*)
-  let expected0 = { types=["X", tBoolInf]; sizes=[i, k]} in
-
-  let test_list = [
-    input0, expected0;
-    ] in
-  List.iteri (fun n ((maybe, target), e) -> Alcotest.(check subst_hat) (string_of_int n) e (unify_one_hat maybe target))
-    test_list
-
-let test_unification_errors () = 
-  (* 7/29: this actually should not be an error*)
-  (* let input1 = tList Inf (tNat Inf), tList i (tNat Inf) in (*List ∞, List i, ~> FAIL *) *)
-
-  let test_list = [
-    (* input1; *)
-    ] in
-  List.iteri (fun n (maybe, target) -> Alcotest.match_raises (string_of_int n)
-    (function
-      | Util.UnificationError _ -> true
-      | _ -> false)
-    (fun _ -> let _ = unify_one_hat maybe target in ()))
-    test_list
-
-(* let test_HO_unify_one_hat () = 
-  (* τ, □ *)
-  let input1 = [tNat Inf] --> tNat Inf, [tNat i] --> tNat i in
-  let expected1 = { types=[]; sizes=[Inf, i; Inf, i]} in (* repeated but whatever*)
-
-  let input2 = [tNat k] --> tNat k, [tNat i] --> tNat i in
-  let expected2 = { types=[]; sizes=[i, i; k, i]} in 
-
-  let test_list = [
-    input1, expected1;
-    input2, expected2;
-    ] in
-  List.iteri (fun n ((maybe, target), e) -> Alcotest.(check subst_hat) (string_of_int n) e (unify_one_hat maybe target))
-    test_list *)
-
-(*
-wishlist for polymorphic producer unification showing substitution on arguments
-  list-ref : ∀ i . Nat ∞ -> List i (X ∞) -> (X ∞)           (* i have writte the infs explicitly on the list contents *)
-
-  unify range (X ∞) with □      yields     X = Bool 
-  so now we look for 2 arguments:
-  □2 : Nat ∞
-  □3 : List i (Bool ∞)
-
-
-  cons : ∀ i . (X ∞) -> List i (X ∞) -> List i^ (X ∞)
-*)
+(*******************************************************)
 
 let () =
   let open Alcotest in
@@ -208,15 +221,15 @@ let () =
         test_case "subst_size_of_ty" `Quick test_subst_size_of_ty;
         test_case "safe_subst_size_exp" `Quick test_safe_subst_size_exp;
       ];
-      "size_subtype",   [ test_case "size_subtype"   `Quick test_size_subtype  ];
-      "unify_size_exp", [ test_case "unify_size_exp" `Quick test_unify_size_exp  ];
+      "type_comparison",   [ test_case "size_subtype"   `Quick test_size_subtype  ];
+      "unification", [ 
+        test_case "unify_size_exp"                    `Quick test_unify_size_exp;
+        test_case "unify_size_exp errors"             `Quick test_unification_errors;  
+        test_case "unify hat: first order"            `Quick test_unify_one_hat;  
+        (* test_case "unify hat: higher order"           `Quick test_HO_unify_one_hat;   *)
+      ];
       "ty_unify_producer", [ 
         test_case "monomorphic producer"              `Quick test_mono_producer_unification;  
         test_case "monomorphic reachable producer"    `Quick test_mono_reachable_producer;
-        ];
-      "new unifier module", [ 
-        test_case "unify hat: first order"            `Quick test_unify_one_hat;  
-        test_case "unify hat: first order errors"     `Quick test_unification_errors;  
-        (* test_case "unify hat: higher order"           `Quick test_HO_unify_one_hat;   *)
         ];
     ]
