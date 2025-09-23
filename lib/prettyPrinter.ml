@@ -18,9 +18,19 @@ let rec print_lst (print : 'a -> int -> string list -> string list) (sep : strin
     | [] -> acc
     | z :: zs -> print z tab_i (sep @ (print_lst print sep zs tab_i acc))
 
+(* replace generic datatype constructor names with their racket variants*)    
+let rackety_constructors_defns name = 
+  match name with
+  | "Zero" -> "0"
+  | "Succ"  -> "add1"
+  | _ -> name
+
 let pprint_prog (ppf : Format.formatter) (prog : Exp.exp) (data_cons : Exp.data_constructors_t) : unit =
-  let print_bnd (x : Exp.var) (_ : int) (acc : string list) =
+  (* let print_bnd_with_ty (x : Exp.var) (_ : int) (acc : string list) = (* with type annotations *)
     ("["^(x.var_name)^":"^Exp.show_size_ty x.var_ty^"]") :: acc
+  in *)
+  let print_bnd (x : Exp.var) (_ : int) (acc : string list) =
+    x.var_name :: acc
   in
   let print_bnds = print_lst print_bnd [" "] in
   let rec print_e (e : Exp.exp) (tab_i : int) (acc : string list) : string list =
@@ -35,20 +45,33 @@ let pprint_prog (ppf : Format.formatter) (prog : Exp.exp) (data_cons : Exp.data_
     | App (func, args) -> 
       let print_es = print_lst print_e ["\n";tab tab_i1] in
       let args = "\n"::(tab tab_i1)::(print_es args tab_i1 (")"::acc)) in
-      "(call"::"\n"::(tab tab_i1)::(print_e func tab_i1 args)
+      "("::(print_e func tab_i1 args)
     | Letrec (func, params, body) -> (*  (letrec ([f (λ (params) body)]) f)  *)
       let tail = ")]) "::(func.var_name)::")"::acc in
       let body = "\n"::(tab tab_i1)::(print_e body tab_i1 tail) in
       let lambda = "(letrec (["::(func.var_name)::" (λ "::"("::(print_bnds params tab_i (")"::body)) in
       lambda
     | ExtRef (name, _) ->
-      name :: acc
+      rackety_constructors_defns name :: acc
     | Case (e, ty, clauses) -> (* (match e [(D x ...) e_1)] ... ) *)
+      (* if we can't assume that e is a variable, then we should store it in a variable to use later ... *)
+      (* let head_var = new_var (TyVar("h", Inf)) in  *)
+      let head_var = print_e e tab_i [] in
       let print_bnds vars = print_lst print_bnd [" "] vars tab_i1 in
       let constructors = TypeUtil.lookup_constructors data_cons ty in
       let str_clauses = List.fold_right2 (fun (vars, body) (cname, _) acc ->
-        let body_str = ("\n"^tab tab_i1)::(print_e body tab_i1 ("]"::acc)) in
-        ("\n"^tab tab_i1)::("[("^cname)::(print_bnds vars (")"::body_str)))
+        match cname with  (* special case for printing natural #s *)
+        | "Zero" -> (* removes the parens around 0 *)
+          let body_str = ("\n"^tab tab_i1)::(print_e body tab_i1 ("]"::acc)) in
+          ("\n"^tab tab_i1)::("[0"::body_str)
+        | "Succ" -> (* [(? positive?) (let ([var (sub1 head_var)]) body)] *)
+          let body_str = ("\n"^tab tab_i1)::(print_e body tab_i1 (")]"::acc)) in
+          ("\n"^tab tab_i1)::("[(? positive?) 
+            (let ([" :: print_bnds vars (" (sub1 "::head_var@")])"
+            ::body_str))
+        | _ -> (* normal case *)
+          let body_str = ("\n"^tab tab_i1)::(print_e body tab_i1 ("]"::acc)) in
+          ("\n"^tab tab_i1)::("[("^(rackety_constructors_defns cname)^" ")::(print_bnds vars (")"::body_str)))
         clauses
         constructors
         (")"::acc) in

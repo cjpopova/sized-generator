@@ -15,25 +15,24 @@ let data_constructors : data_constructors_t = [
      "false", [] --> tBool ];
     ["Zero", [] --> tNat ihat;
      "Succ", [tNat i] --> tNat ihat];
-    ["Nil", [] --> tList ihat tX; 
-     "Cons", [tX; tList i tX] --> tList ihat tX]
+    ["'()", [] --> tList ihat tX;  (* Nil *)
+     "cons", [tX; tList i tX] --> tList ihat tX]
     ]
 
 let std_lib = [
-  "(+)",    [tNat i; tNat Inf] --> tNat Inf;
-  "(-)",    [tNat i; tNat Inf] --> tNat i;
-  (* "id",     [TyVar ("X", i)] --> TyVar ("X", i); *)
+  "+",    [tNat i; tNat Inf] --> tNat Inf;
+  "-",    [tNat i; tNat Inf] --> tNat i;
   "odd",    [tNat Inf] --> tBool;
   "even",   [tNat Inf] --> tBool;
-  "(&&)",   [tBool; tBool] --> tBool;
-  "(||)",   [tBool; tBool] --> tBool;
+  "&&",   [tBool; tBool] --> tBool;
+  "||",   [tBool; tBool] --> tBool;
   "not",    [tBool] --> tBool;
-  "(==)",   [tX; tX] --> tBool;
+  "==",   [tX; tX] --> tBool;
   "42",     tNat Inf; (* it is useful to have some large constants, because Succ consumes fuel*)
   "560",    tNat Inf;
   "1000000",tNat Inf;
   "(cons 10 (cons 50 nil))", tList Inf (tNat Inf);
-  "head"   ,[tList i tX] --> tX;
+  (* "head"   ,[tList i tX] --> tX; *)
   "tail"   ,[tList i tX] --> tX;
   "take"   ,[tList i tX; tNat Inf] --> tList i tX;
   "list-ref",[tList i tX; tNat Inf] --> tX;

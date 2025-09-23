@@ -58,7 +58,7 @@ let lambda_steps weight (generate : hole_info -> exp) (hole : hole_info) (acc : 
 
 (*
 Γ, x : (d^ihat τ), f : (d^i τ) → θ ⊢
-□ : θ[i := ihat]
+□ : θ[i := ihat] ↝ e
 -------------------------------------- (FIX)
 Γ ⊢ □ : ∀i.(d^i τ) → θ ↝ funrec x.e
 *)
@@ -79,7 +79,7 @@ let letrec_steps weight (generate : hole_info -> exp) (hole : hole_info) (acc : 
 -------------------------------------- (APPREF)
 Γ, x : (d^α τ_1)   ⊢   □ : T ↝ (e x)
 
-Generally, this rule requires you to find θ such that T = θ[k := α].
+Generally, this rule requires you to find θ such that T = θ[k := α] (precondition 2 above is written with subtyping)
 Instead of unsubstituting, we'll just do θ = T[α := k] where α is the size expression of the variable.
 Only successful substitution are kept. This dismisses cases such as T=k, α=khat where there is not a well-formed function.
 
@@ -226,7 +226,7 @@ let main (lib : library) : generators_t =
     (fun (base_acc, recur_acc) constructors -> 
       let (base, recur) = List.partition (fun (_ , ty) -> 
         match ty with 
-        | TyArrow(_, [], _) -> true
+        | TyArrow(_, [], _) -> true (* base constructors have no arguments *)
         | _ -> false)
         constructors in
       (base::base_acc, recur::recur_acc))
@@ -238,7 +238,7 @@ let main (lib : library) : generators_t =
     letrec_steps                    ( w_fuel_base 3. 1. );
     fresh_call_ref_step             ( w_fuel_base 2. 0. );
     indir_call_ref_step             ( w_fuel_base 1. 1. );
-    indir_call_recur_step           ( w_fuel_base 2. 1. );
+    indir_call_recur_step           ( w_fuel_base 5. 1. );
     std_lib_steps call_std_lib      ( w_fuel_base 3. 0. );
     base_std_lib_steps base_std_lib ( w_const 1.        );
     recur_constructor_steps recur_data_cons     ( w_fuel_base 2. 0. );
