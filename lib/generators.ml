@@ -234,7 +234,7 @@ let main (lib : library) : generators_t =
     data_cons in
   [
     var_steps                       ( w_const 2.        );
-    lambda_steps                    ( w_fuel_base 2. 1. );
+    lambda_steps                    ( w_fuel_base 0. 0. );
     letrec_steps                    ( w_fuel_base 3. 1. );
     fresh_call_ref_step             ( w_fuel_base 2. 0. );
     indir_call_ref_step             ( w_fuel_base 1. 1. );

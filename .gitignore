@@ -1,7 +1,8 @@
 _build/
 _build/
 log/
+output/
 
 *.o
 commit-msg.md
-*hat*.md
+*.bak

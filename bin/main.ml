@@ -24,8 +24,24 @@ Seq.init batch_size
              Debug.run prerr_newline;
              p);;
 
+(* tracing/file output setup *)
+let outdir = "output/"
+let subdir = outdir ^ string_of_int @@ int_of_float @@ Unix.time ()
+let _ = Sys.mkdir subdir 0o755
+(* in lieu of generating inputs, we will supply default inputs to match the target type above. List = "(make-list 100 0)" *)
+let input = "100 42"
+  
+(* generate! *)
 let () = 
-  Debug.debug_mode := true;
+  Debug.debug_mode := false;
   Printf.eprintf ("\n");
-Seq.iter (fun e -> PrettyPrinter.pretty_print e data_constructors) (generate_batch 5 10)
-
+Seq.iteri (fun i e -> 
+  let file = subdir ^ "/" ^ string_of_int i ^ ".rkt" in
+  let oc = open_out file in
+  (* PrettyPrinter.pretty_print e data_constructors; print to stdout *)
+  PrettyPrinter.print_trace e data_constructors oc input; (* print to file *)
+  let _ = close_out oc in
+  Printf.printf "test %d\n%!" i; (* flush *)
+  let _ = (Sys.command @@ "timeout 10s racket " ^ file) in ()
+  )
+  (generate_batch 5 1000)

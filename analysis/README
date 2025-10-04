@@ -1,0 +1,17 @@
+This folder contains scripts and analysis results from experiments.
+
+## Experiments
+2025-10-01: see directions in ~meeting-notes/2025-10-1-ll.md
+Instructions:
+- commit to replicate: see commit on 2025-10-04
+- `dune exec -- palka_stlc > my_file.txt`
+- Generated code will be in `output/<unix timestamp>`
+- run analysis.rkt on `my_file.txt` to get the 2 #s described below in scripts
+
+The code/specs
+
+## Scripts
+analysis.rkt: prints out 2 vectors:
+1. number of functions recorded in each test
+2. the maximum number of recursive calls made in 1 function in each test
+
