@@ -30,6 +30,8 @@ let subdir = outdir ^ string_of_int @@ int_of_float @@ Unix.time ()
 let _ = Sys.mkdir subdir 0o755
 (* in lieu of generating inputs, we will supply default inputs to match the target type above. List = "(make-list 100 0)" *)
 let input = "100 42"
+let batch_size = 100
+let () = Printf.printf "num tests: %d\n%!" batch_size (* flush *)
   
 (* generate! *)
 let () = 
@@ -44,4 +46,4 @@ Seq.iteri (fun i e ->
   Printf.printf "test %d\n%!" i; (* flush *)
   let _ = (Sys.command @@ "timeout 10s racket " ^ file) in ()
   )
-  (generate_batch 5 1000)
+  (generate_batch 5 batch_size)

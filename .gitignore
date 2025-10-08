@@ -4,5 +4,4 @@ log/
 output/
 
 *.o
-commit-msg.md
 *.bak
