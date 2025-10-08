@@ -3,7 +3,9 @@ TODO
 - [ ] tuning
   - [ ] discourage nested letrecs in the current form inside loops because they will probably get optimized out anyway?
   - [ ] increase weight of recursive apps 
+  - [ ] decrease weight of letrecs themselves
 - [ ] experiment with non size preserving functions
+- [ ] look at patterns of optimizations
 
 ## changes necessary for racket-style printer
 - [ ] better arguments to start with (replace default 100/42)

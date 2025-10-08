@@ -1,6 +1,9 @@
 This folder contains scripts and analysis results from experiments.
 
 ## Experiments
+2025-10-08:
+- increased fuel to 10: failure rate down to 23%
+
 2025-10-07:
 - messed with the weights in generators.ml to get the failure (1 recursive call) rate down to 50%
 
