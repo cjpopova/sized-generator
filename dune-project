@@ -1,6 +1,6 @@
 (lang dune 3.19)
 
-(name palka_stlc)
+(name sized_generator)
 
 (generate_opam_files true)
 
@@ -16,7 +16,7 @@
 (documentation https://url/to/documentation)
 
 (package
- (name palka_stlc)
+ (name sized_generator)
  (synopsis "A short synopsis")
  (description "A longer description")
  (depends ocaml)

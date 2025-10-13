@@ -1,4 +1,4 @@
 (library
- (public_name palka_stlc)
+ (public_name sized_generator)
  (preprocess (pps ppx_deriving.show ppx_deriving.ord))
  (wrapped false))

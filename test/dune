@@ -1,4 +1,4 @@
 (test
- (name test_palka_stlc)
+ (name test_sized_generator)
  (preprocess (pps ppx_deriving.show ppx_deriving.ord))
- (libraries palka_stlc alcotest))
+ (libraries sized_generator alcotest))

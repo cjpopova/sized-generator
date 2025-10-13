@@ -1,4 +1,4 @@
 (executable
- (public_name palka_stlc)
+ (public_name sized_generator)
  (name main)
- (libraries palka_stlc unix))
+ (libraries sized_generator unix))
