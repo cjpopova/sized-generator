@@ -24,7 +24,7 @@ let letrec_constructor_step (generate : generate_t) (hole : hole_info) =
   | TyArrow (_, ty_params, ty') ->
      fun () ->
      Debug.run (fun () -> Printf.eprintf ("creating letrec\n"));
-     let f = Exp.new_var (TypeUtil.unquantify_ty hole.ty) in
+     let f = Exp.new_var (TypeUtil.unquantify_ty hole.ty) ~prefix:"f" in
      let xs = List.map (fun t -> Exp.new_var t) ty_params in
      let body_hole = { hole with ty=ty'; env=f::xs@hole.env } in
      Exp.Letrec (f, xs, generate body_hole)
@@ -48,6 +48,22 @@ let indir_call_ref_step (generate : generate_t) (hole : hole_info) (var, ty : Ex
     let args = List.map (fun t -> generate { hole with ty=t}) ty_params in
     Exp.App (Exp.Var var, args)
   | _ -> raise (Util.Impossible "indir_call_ref_step on non-function type")
+  
+let nest_letrec_step (generate : generate_t) (hole : hole_info) (tau1 : Exp.size_ty)  =
+  let hat_func = TypeUtil.size_up_ty tau1 in 
+  match hat_func with
+  | TyArrow (_, ty_params, ty') ->
+     fun () ->
+     Debug.run (fun () -> Printf.eprintf ("creating nest letrec\n"));
+     let f = Exp.new_var (TypeUtil.unquantify_ty tau1) ~prefix:"f" in
+     let xs = List.map (fun t -> Exp.new_var t) ty_params in
+     let func_env = f::xs@hole.env in (* uses the unquantified f (and arguments) inside the body of the function *)
+     let let_env = {f with var_ty=tau1}::hole.env in (* allowed quantification over other sized outside the function, in the let*)
+     let func_hole = { hole with ty=ty'; env=func_env} in
+     let body_hole = { hole with ty=hole.ty; env=let_env } in
+     Exp.NLetrec (f, xs, generate func_hole, generate body_hole)
+  | _ -> fun () ->
+         raise (Util.Impossible "nest letrec constructor on non-function type")
 
 
 let call_std_lib_step (generate : generate_t) (hole : hole_info) ((name, ty) : (string * Exp.size_ty))  =

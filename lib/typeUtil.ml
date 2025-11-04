@@ -47,7 +47,11 @@ let size_exp_of_ty ty =
 (*** SPECIALTY HELPERS ***)
 
 (* e1[e2:=e3] 
-special variant of size substitution for APPREF rule that guards against invalid substitutions *)
+special variant of size substitution for APPREF rule that guards against invalid substitutions
+such as i[i^:=k] from
+hole : Nat i
+var : Nat i^
+*)
 let rec safe_subst_size_exp e1 e2 e3 : size_exp option = 
   if e1=e2 then Some e3 
   else match e1 with

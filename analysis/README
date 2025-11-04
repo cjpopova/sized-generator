@@ -1,6 +1,17 @@
 This folder contains scripts and analysis results from experiments.
 
 ## Experiments
+2025-10-21:
+- add nest_let_rec (requires re-enabling indir_call_ref_step), bringing failure rate to ???
+```
+test 52 is taking too long to generate (hours? i think it ran overnight and never finished)
+is it an infinite loop somewhere?
+clearly there's some issue w/ fuel counts because i don't the AST is actually 10 depth
+is it performance of using the wrong Urn implementation?
+
+test 51 is also taking a few minutes to generate ... is there some exponential thing happening?
+```
+
 2025-10-08:
 - increased fuel to 10: failure rate down to 23%
 

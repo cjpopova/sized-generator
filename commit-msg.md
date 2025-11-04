@@ -7,6 +7,14 @@ TODO
 - [ ] experiment with non size preserving functions
 - [ ] look at patterns of optimizations
 
+
+## notes
+I believe an invariant of the simple size algebra system (S = v | S^ | ∞ ) is:
+□ : T and ∀ (x, τ) ∈ Γ, if x is not a function, then |_T_| = |_τ_|                // abuse of |_s_|notation 
+ie the hole and the non-function elements of the environment have the same base size variable
+however, if x is a function, then its quantifier is fresh
+
+
 ## changes necessary for racket-style printer
 - [ ] better arguments to start with (replace default 100/42)
 

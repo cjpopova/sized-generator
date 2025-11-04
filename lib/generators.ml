@@ -47,8 +47,6 @@ let var_steps weight (generate : hole_info -> exp) (hole : hole_info) (acc : rul
   steps_generator hole acc
                   Rules.var_step weight generate ref_vars
 
-(* NOTE: make this distinct from letrec
-*)
 let lambda_steps weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
    (*Debug.run (fun () -> Printf.eprintf "considering lambda\n"); *)
   match hole.ty with
@@ -93,7 +91,7 @@ where τ was the type of the variable
 let fresh_call_ref_step weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
   match hole.ty with
   | TyCons _ -> (* NOTE: Only allow first-order holes to be filled *)
-   (* Debug.run (fun () -> Printf.eprintf "considering fresh_call\n"); *)
+   (*(* Debug.run (fun () -> Printf.eprintf "considering fresh_call\n"); *)*)
   let k = new_s_var () in
   let var_tys : (var * size_ty) list = List.filter_map (fun var -> match var.var_ty with
     | TyCons _ -> (* NOTE: Only allow first order variables on RHS of application *)
@@ -104,7 +102,7 @@ let fresh_call_ref_step weight (generate : hole_info -> exp) (hole : hole_info) 
           [(TypeUtil.resize_ty var.var_ty k)], (* τ^α: replace variable's size expression with k *)
           TypeUtil.subst_size_of_ty hole.ty (TypeUtil.size_exp_of_ty var.var_ty) k)) (* T[α := k] *)
       else None)
-      | _ -> None)
+    | _ -> None)
     hole.env in
   steps_generator hole acc
                   Rules.fresh_call_ref_step weight generate var_tys
@@ -143,6 +141,44 @@ let indir_call_recur_step weight (generate : hole_info -> exp) (hole : hole_info
   indir_call weight generate hole acc (* non-quantified functions are recursive *)
     (fun ty -> match ty with | TyArrow(U _, _, _) -> true | _ -> false)
 
+(*
+θ[k := α] = T
+Γ                       ⊢ □₁ : ∀k.(d^k τ_1) → θ ↝ e₁
+Γ, f : ∀k.(d^k τ_1) → θ ⊢ □₂ : T                ↝ e₂
+------------------------------------------------------- (NEST_LETREC)
+Γ, x : (d^α τ_1) ⊢ □ : T ↝ (letrec f = e₁ in e₂)
+
+This rule introduces a recursive function without immediately producing it in □₂, allowing it to be used arbitrarily.
+The type of □₁ is a function from (some sized type available in the environment) to T
+I am not bothering with subtyping here.
+This is similar to appref in its size subsitution, so I'll have to copy that rule.
+This won't increase the number of recursive calls within the body, but it might increase (or decrease) 
+the number of times a recursive call is started because we don't control e_2. You could increase the number
+of times by increasing the weight of indir_call_ref_step.
+*)
+let nest_letrec weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
+  match hole.ty with
+  | TyCons _ -> (* NOTE: Only allow first-order holes to be filled *)
+    (*Debug.run (fun () -> Printf.eprintf "considering nest_letrec\n"); *)
+    (* construct a function type*)
+    let k = new_s_var () in
+    let types : size_ty list = (* possible τ_1 s*)
+    List.filter_map (fun var -> match var.var_ty with
+      | TyCons _ -> (* NOTE: Only allow first order as the function domain *)
+      (* Debug.run (fun () -> Printf.eprintf "\t%s\n" (show_var var));  *)
+      (if Option.is_some(TypeUtil.safe_subst_size_exp (TypeUtil.size_exp_of_ty hole.ty) (TypeUtil.size_exp_of_ty var.var_ty) k)
+        then Some (
+          TyArrow(Q k, 
+            [(TypeUtil.resize_ty var.var_ty k)], (* τ^α: replace variable's size expression with k *)
+            TypeUtil.subst_size_of_ty hole.ty (TypeUtil.size_exp_of_ty var.var_ty) k)) (* T[α := k] *)
+        else None)
+      | _ -> None)
+        hole.env in
+      steps_generator hole acc
+        Rules.nest_letrec_step weight generate types
+  | _ -> acc
+
+(************************)
 
 (* application of function from std_lib with arguments from the environment (analagous to INDIR above) *)
 let std_lib_steps (std_lib_m : (string * size_ty) list)
@@ -237,8 +273,9 @@ let main (lib : library) : generators_t =
     (* lambda_steps                    ( w_fuel_base 0. 0. ); *)
     letrec_steps                    ( w_fuel_base 3. 1. );
     fresh_call_ref_step             ( w_fuel_base 1. 0. );
-    (* indir_call_ref_step             ( w_fuel_base 0. 0. ); *)
+    indir_call_ref_step             ( w_fuel_base 3. 0. );
     indir_call_recur_step           ( w_fuel_base 10. 1. );
+    nest_letrec                     ( w_fuel_base 10. 1. );
     std_lib_steps call_std_lib      ( w_fuel_base 2. 0. );
     base_std_lib_steps base_std_lib ( w_const 1.        );
     recur_constructor_steps recur_data_cons     ( w_fuel_base 2. 0. );

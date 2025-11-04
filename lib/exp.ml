@@ -5,7 +5,7 @@ type size_exp = (* size algebra *)
 
 type quantifier = 
   | Q of size_exp (* Quantified by SVar k: may be called with anything  *)
-  | U of size_exp (* Unquantified by SVar k: may only be called with s $<= k where |_s_| = k *)
+  | U of size_exp (* Unquantified by SVar k: may only be called with s $<= k where |_s_| = k (added to the environment of a recursive function for recursive calls)*)
 
 type size_ty = (* sized types*)
   | TyVar of string * size_exp (* INVARIANT: size_exp is Inf*)
@@ -42,6 +42,7 @@ type exp =
   | Lambda of ((var list) * exp)
   | App of (exp * (exp list))
   | Letrec of (var * (var list) * exp) (*  (letrec ([f (λ (params) body)]) f)  *)
+  | NLetrec of (var * (var list) * exp * exp) (*  Nested letrec := (letrec ([f (λ (params) e_func_body)]) e_let_body)  *)
   | ExtRef of string * size_ty (* the size_ty isn't ever used *)
   | Case of exp * size_ty * ((var list * exp) list) (* case e \tau of { (x ... -> e_1) ... } *)
 (* [@@deriving show] *)
@@ -80,10 +81,10 @@ and generators_t = (generate_t -> hole_info -> rule_urn -> rule_urn) list
 
 let var_counter = ref 0
 let reset_var_counter () = var_counter := 0
-let new_var (ty : size_ty) =
+let new_var ?(prefix="x") (ty : size_ty)  =
   let x = !var_counter in
   incr var_counter;
-  { var_name = "x" ^ Int.to_string x;
+  { var_name = prefix ^ Int.to_string x;
     var_ty = ty;
   }
 

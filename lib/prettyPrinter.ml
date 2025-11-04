@@ -71,11 +71,14 @@ let pprint_prog (ppf : out_channel) (prog : Exp.exp) (data_cons : Exp.data_const
         then "(hash-set! hsh "^func.var_name^" (add1 (hash-ref! hsh "^func.var_name^" 0)))\n" (* initialize & update the trip counter *)
         else "" in 
       let body = "\n"::prebody::(tab tab_i1)::(print_e body tab_i1 tail) in
-      (* let params = if trace 
-        then let n = fresh_var () in (* add trace argument *)
-        let _ = Hashtbl.add traces func n in
-        n :: params
-        else params in *)
+      let lambda = "(letrec (["::(func.var_name)::" (λ "::"("::(print_bnds params tab_i (")"::body)) in
+      lambda
+    | NLetrec (func, params, func_body, let_body ) -> (*  Nested letrec := (letrec ([f (λ (params) e_func_body)]) e_let_body) *)
+      let let_body_tail = ")]) "::(print_e let_body tab_i1 (")"::acc)) in
+      let prebody = if trace
+        then "(hash-set! hsh "^func.var_name^" (add1 (hash-ref! hsh "^func.var_name^" 0)))\n" (* initialize & update the trip counter *)
+        else "" in 
+      let body = "\n"::prebody::(tab tab_i1)::(print_e func_body tab_i1 let_body_tail) in
       let lambda = "(letrec (["::(func.var_name)::" (λ "::"("::(print_bnds params tab_i (")"::body)) in
       lambda
     | ExtRef (name, _) ->
