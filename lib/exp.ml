@@ -94,3 +94,5 @@ let new_s_var _ =
   let x = !s_var_counter in
   incr s_var_counter;
   SVar ("i" ^ Int.to_string x)
+
+let is_mutual_var (_ : var) = false (* TODO cheat & use prefix to determine if v is a preallocated var*)

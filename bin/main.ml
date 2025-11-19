@@ -9,13 +9,13 @@ let generate_stlc (fuel : int) =
   Generate.generate_fp 
     steps
     fuel (* target type: *)
-    (TyArrow(Q (SVar "k"), [tNat (SVar "k"); tNat Inf], tNat (SVar "k")))
+    [(TyArrow(Q (SVar "k"), [tNat (SVar "k"); tNat Inf], tNat (SVar "k")))]
     (* (TyArrow(Some (SVar "k"), [tNat (SVar "k"); tNat Inf], tNat Inf)) *)
     (* ([tBool] --> tBool) *)
     (* ([tList i (tNat Inf)] --> tList i (tNat Inf)) *)
     (* ([tList i (tNat Inf); tList Inf (tNat Inf)] --> (tList Inf (tNat Inf)))  *)
 
-let batch_size = 500
+let batch_size = 5
 let fuel = 10
 let mode="trace" (* "print" or "trace" *)
 let debug_mode = false

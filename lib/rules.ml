@@ -5,6 +5,8 @@ let var_step (_ : generate_t) (_ : hole_info) (var : var) =
   Debug.run (fun () -> Printf.eprintf ("creating VAR: %s\n") (show_var var));
   Var var
 
+(***************************************************************)
+
 (* Creates a lambda *)
 let func_constructor_step (generate : generate_t) (hole : hole_info) =
   match TypeUtil.size_up_ty hole.ty with
@@ -31,6 +33,20 @@ let letrec_constructor_step (generate : generate_t) (hole : hole_info) =
   | _ -> fun () ->
          raise (Util.Impossible "letrec constructor on non-function type")
 
+(* let mutualrec_constructor_step (generate : generate_t) (hole : hole_info) (mutual_f : var) =
+  (* App f' xs ... 
+  where xs are existing bindings from the environment
+  and f' will be picked by generators.ml from the list of mutuals in `hole`
+  we ewill check f' with ty_produces to ensure arguments are available
+  otherwise the same as indir_call_ref_step
+  *)
+  fun () ->
+  Debug.run (fun () -> Printf.eprintf ("creating lambda\n"));
+  let xs = List.map (fun t -> Exp.new_var t) ty_params in
+  let body_hole = { hole with ty=ty'; env=xs@hole.env } in
+  Exp.App (mutual_f, generate body_hole) *)
+
+(***************************************************************)
 
 (* Construct an application of a fresh function to existing arguments *)
 let fresh_call_ref_step (generate : generate_t) (hole : hole_info) (var, func_ty : var * size_ty) = (* NOTE: this is unary *)
@@ -65,6 +81,7 @@ let nest_letrec_step (generate : generate_t) (hole : hole_info) (tau1 : Exp.size
   | _ -> fun () ->
          raise (Util.Impossible "nest letrec constructor on non-function type")
 
+(***************************************************************)
 
 let call_std_lib_step (generate : generate_t) (hole : hole_info) ((name, ty) : (string * Exp.size_ty))  =
   fun () ->
@@ -94,7 +111,7 @@ let base_constructor_step (_ : generate_t) (hole : hole_info) (name , _ : string
   Debug.run (fun () -> Printf.eprintf ("creating base constructor reference: %s\n") name);
   ExtRef(name, hole.ty)
 
-
+(***************************************************************)
 
 let case_step (generate : generate_t) (hole : hole_info) 
               (var, constructors : var * func_list) =

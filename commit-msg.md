@@ -1,5 +1,23 @@
+# Mutual recursion todos
+questions
+- how to spawn off processes
+- best printing methodology
+- how tracer knows which functions are mutually recursive w/ each other
+- how to encourage calls of mutually recursive function in B (given that A spawns B)
 
-TODO
+notes
+1. make pretty-printer output separate definitions (mutual recursion not compatible w/ current printing style of arguments). this could be done via implementing a top-level printer that decomposes the exp into the letrec or whatever to grab its function name, but i don't think this would mesh well w/ the existing letrec printing. we need to be able to rewrite that somehow or write a toplevel printer that only calls pprint_prog for the exp INSIDE the top level function
+2. now might be a good time to rewrite the urn implementation since i might need to mess w/ generate.ml
+3. the top level call is   Generate.generate_fp  steps fuel (* target type: *) type
+4. fuel for mutual recursion: how much fuel do we provide @ nonlocal holes?
+
+I think for composability we need to revert back to generating 2 functions independently & hoping that we call each other.
+1. environment = create a bucket of function names/signatures that will be used for mutual recursion. we are not allowed to create more later
+2. on a call, give the same weight of calling mutual recursion as you calling regular recursion?? are there every any patterns that combine regular w/ mutual recursion? maybe this is where we can hit the edge of optimizations. try putting this into rocq and see if it's accepts
+
+
+
+# TODO
 - [ ] tuning
   - [ ] discourage nested letrecs in the current form inside loops because they will probably get optimized out anyway?
   - [ ] increase weight of recursive apps 

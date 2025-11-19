@@ -1,4 +1,4 @@
-exception Unimplemented
+exception Unimplemented of string
 
 exception Impossible of string
 
