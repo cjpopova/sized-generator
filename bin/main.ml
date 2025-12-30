@@ -1,57 +1,102 @@
 open Exp
 open Library
 
-let steps : generators_t = (Generators.main {std_lib = std_lib; data_cons = data_constructors})
-
 (******************* PARAMETERS ********************)
 
-let generate_stlc (fuel : int) = 
-  Generate.generate_fp 
-    steps
-    fuel (* target type: *)
-    [(TyArrow(Q (SVar "k"), [tNat (SVar "k"); tNat Inf], tNat (SVar "k")))]
-    (* (TyArrow(Some (SVar "k"), [tNat (SVar "k"); tNat Inf], tNat Inf)) *)
-    (* ([tBool] --> tBool) *)
-    (* ([tList i (tNat Inf)] --> tList i (tNat Inf)) *)
-    (* ([tList i (tNat Inf); tList Inf (tNat Inf)] --> (tList Inf (tNat Inf)))  *)
+let batch_size = ref 1
+let fuel = ref 5
+let seed = ref (-1)
+let mode = ref (0) (* 0 for print; 1 for trace *)
+let lang = ref ("ml") (* ml or rkt (same as file extension) *)
+let speclist =
+[
+  ("-n", Arg.Set_int batch_size, "Number of tests to generate");
+  ("-size", Arg.Set_int fuel, "Size of each function");
+  ("-seed", Arg.Set_int seed, "Random generator seed");
+  ("-print_or_trace", Arg.Set_int mode, "print or trace modes"); (* NOTE: cleanup*)
+  ("-lang", Arg.Set_string lang, "Language");
+  ("-debug", Arg.Set Debug.debug_mode, "Enable debug mode");
+]
 
-let batch_size = 5
-let fuel = 10
-let mode="trace" (* "print" or "trace" *)
-let debug_mode = false
-
-(******************* LOOP  **************************)
-let generate_batch fuel batch_size =
-Seq.init batch_size
-           (fun _ ->
-             let p = generate_stlc fuel in
-             Debug.run prerr_newline;
-             Debug.run (fun () -> Printf.eprintf "==================");
-             Debug.run prerr_newline;
-             p);;
 
 (************** TRACER SETUP *********************)
 let outdir = "output/"
 let subdir = outdir ^ string_of_int @@ int_of_float @@ Unix.time ()
-let _ = if mode=="trace" then Sys.mkdir subdir 0o755 else ()
 (* in lieu of generating inputs, we will supply default inputs to match the target type above. List = "(make-list 100 0)" *)
-let input = "100 42"
+let input = "'(100 42)"
 
 (************** GENERATE *********************)
-let () = Printf.printf "num tests: %d\n%!" batch_size (* flush *)
-let () = 
-  Debug.debug_mode := debug_mode;
-  Printf.eprintf ("\n");
-Seq.iteri (fun i e -> 
-  if mode=="print" then
-    PrettyPrinter.pretty_print e data_constructors (* print to stdout *)
+let () =
+  Arg.parse speclist (fun _ -> ())
+    "sized_generator [-n <1>] [-size <10>] [-seed <-1>] [-print_or_trace <0>] [-lang <ml>]";
+  (if !seed < 0
+   then Random.self_init ()
+   else Random.init !seed);
+
+   (* Language setup*)
+  let langM = 
+    match !lang with
+    | "ml" -> Gen_ml.ml_ 
+    | "rkt" -> Gen_racket.racket_
+    | _ -> raise (Util.Unimplemented "lang not supported") in
+  let get_data_constructors (module L : Language) = L.data_constructors in
+  let get_std_lib (module L : Language) = L.std_lib in
+  let get_printer (module L : Language) = L.printer in
+
+
+  (* GENERATION *) 
+  let steps : generators_t = (Generators.main {std_lib = get_std_lib langM; data_cons = get_data_constructors langM}) in
+
+  let generate_stlc (fuel : int) : exp list = 
+    Generate.generate_fp 
+      steps
+      fuel (* target type: *)
+      (* [
+        (TyArrow(Q (SVar "k"), [tNat (SVar "k"); tNat Inf], tNat (SVar "k"))); (* these need to use the same quantifier *)
+        (TyArrow(Q (SVar "k"), [tNat (SVar "k"); tNat Inf], tNat (SVar "k"))) 
+      ] *)
+      [
+        (TyArrow(Q (SVar "k"), [tList (SVar "k") (tNat Inf)], tList (SVar "k") (tNat Inf)));
+        (TyArrow(Q (SVar "k"), [tList (SVar "k") (tNat Inf)], tList (SVar "k") (tNat Inf)))
+      ]
+      (* (TyArrow(Some (SVar "k"), [tNat (SVar "k"); tNat Inf], tNat Inf)) *)
+      (* ([tBool] --> tBool) *)
+      (* ([tList i (tNat Inf)] --> tList i (tNat Inf)) *)
+      (* ([tList i (tNat Inf); tList Inf (tNat Inf)] --> (tList Inf (tNat Inf)))  *)
+  in
+  let generate_batch fuel batch_size =
+    Seq.init batch_size
+              (fun _ ->
+                let p = generate_stlc fuel in
+                Debug.run prerr_newline;
+                Debug.run (fun () -> Printf.eprintf "==================");
+                Debug.run prerr_newline;
+                p) in
+  let fs = generate_batch !fuel !batch_size in
+
+
+  let lang_compile_and_run : string -> string = 
+    match !lang with
+    | "ml" -> (fun file -> 
+      let ot = subdir ^ "/a.out " in
+      "ocamlc -o " ^ ot ^ file 
+      ^ "; timeout 10s ocamlrun " ^ ot
+      ^ "; rm " ^ subdir ^ "/*.cm*")
+    | "rkt" -> (fun file -> "timeout 10s racket " ^ file)
+    | _ -> raise (Util.Unimplemented "lang not supported") in
+  
+
+  if !mode == 0 then (* print*)
+    (Printf.eprintf "num tests: %d\n%!" !batch_size;
+    Seq.iter (fun (e : exp list) -> print_endline (get_printer langM e input)) fs)
   else
-    let file = subdir ^ "/" ^ string_of_int i ^ ".rkt" in
-    let oc = open_out file in
-    PrettyPrinter.print_trace e data_constructors oc input; (* print to file *)
-    let _ = close_out oc in
-    let _ = () in
-    Printf.printf "test %d\n%!" i; (*flush*)
-    let _ = (Sys.command @@ "timeout 10s racket " ^ file) in ()
-  )
-  (generate_batch fuel batch_size)
+    (Printf.printf "num tests: %d\n%!" !batch_size;
+    Sys.mkdir subdir 0o755;
+    Seq.iteri (fun i (e : exp list) -> 
+      let file = subdir ^ "/m" ^ string_of_int i ^ "." ^ !lang in
+      let oc = open_out file in
+      Printf.fprintf oc "%s" (get_printer langM e  input);
+      close_out oc;
+      Printf.printf "test %d\n%!" i; (*flush*)
+      let _ = Sys.command @@ (lang_compile_and_run file) in ())
+    fs)

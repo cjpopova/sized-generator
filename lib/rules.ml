@@ -20,13 +20,16 @@ let func_constructor_step (generate : generate_t) (hole : hole_info) =
     raise (Util.Impossible (Format.sprintf "function constructor on non-function or unquantified type: %s" (show_size_ty hole.ty)))
 
 (* Creates a funrec (named function with recursive call) *)
-let letrec_constructor_step (generate : generate_t) (hole : hole_info) =
+let letrec_constructor_step (f : var option) (generate : generate_t) (hole : hole_info)=
   let hat_func = TypeUtil.size_up_ty hole.ty in 
   match hat_func with
   | TyArrow (_, ty_params, ty') ->
      fun () ->
      Debug.run (fun () -> Printf.eprintf ("creating letrec\n"));
-     let f = Exp.new_var (TypeUtil.unquantify_ty hole.ty) ~prefix:"f" in
+     let new_ty = TypeUtil.unquantify_ty hole.ty in
+     let f = if Option.is_some f 
+      then {(Option.get f) with var_ty=new_ty}
+      else Exp.new_var new_ty ~prefix:"f" in
      let xs = List.map (fun t -> Exp.new_var t) ty_params in
      let body_hole = { hole with ty=ty'; env=f::xs@hole.env } in
      Exp.Letrec (f, xs, generate body_hole)
@@ -37,11 +40,11 @@ let letrec_constructor_step (generate : generate_t) (hole : hole_info) =
   (* App f' xs ... 
   where xs are existing bindings from the environment
   and f' will be picked by generators.ml from the list of mutuals in `hole`
-  we ewill check f' with ty_produces to ensure arguments are available
+  we will check f' with ty_produces to ensure arguments are available
   otherwise the same as indir_call_ref_step
   *)
   fun () ->
-  Debug.run (fun () -> Printf.eprintf ("creating lambda\n"));
+  Debug.run (fun () -> Printf.eprintf ("creating mutualrec\n"));
   let xs = List.map (fun t -> Exp.new_var t) ty_params in
   let body_hole = { hole with ty=ty'; env=xs@hole.env } in
   Exp.App (mutual_f, generate body_hole) *)

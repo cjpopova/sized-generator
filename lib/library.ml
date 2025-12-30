@@ -2,46 +2,22 @@ open Exp
 
 let i = SVar "i"
 let ihat = SHat i
+let k = SVar "k"
+let j = SVar "j"
+let khat = SHat k
+let jhat = SHat j
 let tX = TyVar("X",Inf)
 let tY = TyVar("Y",Inf)
 let (-->) ty_params ty_body = TyArrow (Q i, ty_params, ty_body) (* all constructors and std_lib are quantified over i*)
 
-let tBool = TyCons ("Bool", [], ihat) (* technically bools are unsized but this simplifies substitution *)
-let tNat sexp = TyCons ("Nat", [], sexp)
-let tList sexp ty = TyCons ("List", [ty], sexp)
+let tBool = TyCons ("bool", [], ihat) (* technically bools are unsized but this simplifies substitution *)
+let tNat sexp = TyCons ("int", [], sexp)
+let tList sexp ty = TyCons ("list", [ty], sexp)
 
-let data_constructors : data_constructors_t = [
-    ["true", [] --> tBool; 
-     "false", [] --> tBool ];
-    ["Zero", [] --> tNat ihat;
-     "Succ", [tNat i] --> tNat ihat];
-    ["'()", [] --> tList ihat tX;  (* Nil *)
-     "cons", [tX; tList i tX] --> tList ihat tX]
-    ]
 
-let std_lib = [
-  "+",    [tNat i; tNat Inf] --> tNat Inf;
-  "-",    [tNat i; tNat Inf] --> tNat i;
-  "odd",    [tNat Inf] --> tBool;
-  "even",   [tNat Inf] --> tBool;
-  "&&",   [tBool; tBool] --> tBool;
-  "||",   [tBool; tBool] --> tBool;
-  "not",    [tBool] --> tBool;
-  "==",   [tX; tX] --> tBool;
-  "42",     tNat Inf; (* it is useful to have some large constants, because Succ consumes fuel*)
-  "560",    tNat Inf;
-  "1000000",tNat Inf;
-  "(cons 10 (cons 50 nil))", tList Inf (tNat Inf);
-  (* "head"   ,[tList i tX] --> tX; *)
-  "tail"   ,[tList i tX] --> tX;
-  "take"   ,[tList i tX; tNat Inf] --> tList i tX;
-  "list-ref",[tList i tX; tNat Inf] --> tX;
-  "append"  ,[tList i tX; tList Inf tX] --> tList Inf tX; (* size algebra expressivity *)
-  "concat"  ,[tList i (tList Inf tX)] --> tList Inf tX;
-  (* make-list (1-fuel cost to make large constant size lists)*)
-
-  (* higher order danger zone:
-  map      ,[(tX --> tY), tList i tX] -->  tList i tY;
-  foldr    ,N/A
-  *)
-  ]
+(* module type shared among language backends *)
+module type Language = sig
+    val data_constructors : data_constructors_t 
+    val std_lib : (string * size_ty) list
+    val printer : exp list -> string -> string
+  end;;

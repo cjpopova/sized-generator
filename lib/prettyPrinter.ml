@@ -71,7 +71,7 @@ let pprint_prog (ppf : out_channel) (prog : Exp.exp) (data_cons : Exp.data_const
         then "(hash-set! hsh "^func.var_name^" (add1 (hash-ref! hsh "^func.var_name^" 0)))\n" (* initialize & update the trip counter *)
         else "" in 
       let body = "\n"::prebody::(tab tab_i1)::(print_e body tab_i1 tail) in
-      let lambda = "(letrec (["::(func.var_name)::" (λ "::"("::(print_bnds params tab_i (")"::body)) in
+      let lambda = "(letrec (["::(func.var_name)::" (λ "::"("::(print_bnds params tab_i (") ; LR : "::(show_size_ty func.var_ty)::body)) in
       lambda
     | NLetrec (func, params, func_body, let_body ) -> (*  Nested letrec := (letrec ([f (λ (params) e_func_body)]) e_let_body) *)
       let let_body_tail = ")]) "::(print_e let_body tab_i1 (")"::acc)) in
@@ -79,7 +79,7 @@ let pprint_prog (ppf : out_channel) (prog : Exp.exp) (data_cons : Exp.data_const
         then "(hash-set! hsh "^func.var_name^" (add1 (hash-ref! hsh "^func.var_name^" 0)))\n" (* initialize & update the trip counter *)
         else "" in 
       let body = "\n"::prebody::(tab tab_i1)::(print_e func_body tab_i1 let_body_tail) in
-      let lambda = "(letrec (["::(func.var_name)::" (λ "::"("::(print_bnds params tab_i (")"::body)) in
+      let lambda = "(letrec (["::(func.var_name)::" (λ "::"("::(print_bnds params tab_i (") ; NLR : "::(show_size_ty func.var_ty)::body)) in
       lambda
     | ExtRef (name, _) ->
       rackety_renamer name :: acc
@@ -109,19 +109,25 @@ let pprint_prog (ppf : out_channel) (prog : Exp.exp) (data_cons : Exp.data_const
     Printf.fprintf ppf "%s" (String.concat "" (print_e prog 0 []))
       
 
-let pretty_print (prog : Exp.exp) (data_cons : Exp.data_constructors_t) : unit =
+(* let extract_name (e : exp) =
+  match e with 
+  | Letrec f xs e1 -> TODO
+  | _ -> raise (Util.Impossible "Printer cannot extract non-letrec") *)
+
+
+let pretty_print (progs : Exp.exp list) (data_cons : Exp.data_constructors_t) : unit =
   print_string("\n");
-  pprint_prog stdout prog data_cons false;
+  List.iter (fun prog -> pprint_prog stdout prog data_cons false) progs;
   print_string("\n")
 
 (* trace = trace number of recursive calls in hashtable*)
-let print_trace (prog : Exp.exp) (data_cons : Exp.data_constructors_t) 
+let print_trace (progs : Exp.exp list) (data_cons : Exp.data_constructors_t) 
                 (oc : out_channel) (input : string)
                 : unit =
   print_string("\n");
   Printf.fprintf oc "%s" (rackety_header);
   Printf.fprintf oc "%s" ("(define hsh (make-hash))\n");
   Printf.fprintf oc "%s" ("(define res (\n");
-  pprint_prog oc prog data_cons true;
+  List.iter (fun prog -> pprint_prog oc prog data_cons true) progs;
   Printf.fprintf oc "%s" (" "^ input ^"))\n");
   Printf.fprintf oc "%s" ("\n(for ([(k v) hsh]) (printf \"~a ~a\n\" k v))\n") 

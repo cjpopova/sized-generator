@@ -20,6 +20,14 @@ let rec show_size_exp sexp =
   | SHat e -> show_size_exp e ^ "^"
 let pp_size_exp fmt sexp = Format.fprintf fmt "%s" (show_size_exp sexp)
 
+let rec show_unsized_ty ty = 
+  match ty with
+  | TyVar (name, _) -> name
+  | TyCons (name, _, _) -> name 
+  | TyArrow(_, doms, cod) ->
+     List.fold_right (fun ty acc -> show_unsized_ty ty ^ " -> " ^ acc) doms "" 
+     ^ show_unsized_ty cod
+
 let rec show_size_ty ty = 
   match ty with
   | TyVar (name, sexp) -> name ^ " " ^ show_size_exp sexp
@@ -94,5 +102,3 @@ let new_s_var _ =
   let x = !s_var_counter in
   incr s_var_counter;
   SVar ("i" ^ Int.to_string x)
-
-let is_mutual_var (_ : var) = false (* TODO cheat & use prefix to determine if v is a preallocated var*)

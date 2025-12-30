@@ -57,7 +57,7 @@ let lambda_steps weight (generate : hole_info -> exp) (hole : hole_info) (acc : 
 (*
 Γ, x : (d^ihat τ), f : (d^i τ) → θ ⊢
 □ : θ[i := ihat] ↝ e
--------------------------------------- (FIX)
+-------------------------------------- (LETREC)
 Γ ⊢ □ : ∀i.(d^i τ) → θ ↝ funrec x.e
 *)
 let letrec_steps weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
@@ -65,7 +65,7 @@ let letrec_steps weight (generate : hole_info -> exp) (hole : hole_info) (acc : 
   match hole.ty with
   | TyArrow (Q _, ty_params, _) ->
     if List.exists (fun ty -> Inf != TypeUtil.size_exp_of_ty ty) ty_params then (* At least one sized argument.  TODO the sized argument should be the first one *)
-    singleton_generator weight Rules.letrec_constructor_step hole acc generate
+    singleton_generator weight (Rules.letrec_constructor_step None) hole acc generate
     else acc
   | _ -> acc
 
@@ -140,10 +140,7 @@ let indir_call_recur_step weight (generate : hole_info -> exp) (hole : hole_info
    (*Debug.run (fun () -> Printf.eprintf "considering indir_call\n"); *)
   indir_call weight generate hole acc (* non-quantified functions are recursive *)
     (fun v -> match v.var_ty with | TyArrow(U _, _, _) -> true | _ -> false)
-let mutual_call_step weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
-   (*Debug.run (fun () -> Printf.eprintf "considering mutual_call\n"); *)
-  indir_call weight generate hole acc
-    is_mutual_var
+
 (*
 θ[k := α] = T
 Γ                       ⊢ □₁ : ∀k.(d^k τ_1) → θ ↝ e₁
@@ -278,7 +275,6 @@ let main (lib : library) : generators_t =
     fresh_call_ref_step             ( w_fuel_base 1. 0. );
     indir_call_ref_step             ( w_fuel      3.    );
     indir_call_recur_step           ( w_fuel      10.   );
-    mutual_call_step                ( w_fuel_base 5. 0. );
     nest_letrec                     ( w_fuel      10.   );
     std_lib_steps call_std_lib      ( w_fuel      2.    );
     base_std_lib_steps base_std_lib ( w_const 1.        );

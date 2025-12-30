@@ -1,9 +1,10 @@
 open Exp
 open Library
-open DebugLibrary
 open TypeUtil
 
 (********************************** SETUP **********************************)
+
+let tBoolInf = TyCons ("Bool", [], Inf)
 
 (* we do a little cheating with printers *)
 

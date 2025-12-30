@@ -1,23 +1,62 @@
-# Mutual recursion todos
-questions
-- how to spawn off processes
-- best printing methodology
-- how tracer knows which functions are mutually recursive w/ each other
-- how to encourage calls of mutually recursive function in B (given that A spawns B)
+# next steps (big picture)
+- implement tracers in new lang backend
+- finish analysis on the NLREC branch and merge into main
+- implement the nonlocal alternative for mutual rec
 
-notes
-1. make pretty-printer output separate definitions (mutual recursion not compatible w/ current printing style of arguments). this could be done via implementing a top-level printer that decomposes the exp into the letrec or whatever to grab its function name, but i don't think this would mesh well w/ the existing letrec printing. we need to be able to rewrite that somehow or write a toplevel printer that only calls pprint_prog for the exp INSIDE the top level function
-2. now might be a good time to rewrite the urn implementation since i might need to mess w/ generate.ml
-3. the top level call is   Generate.generate_fp  steps fuel (* target type: *) type
-4. fuel for mutual recursion: how much fuel do we provide @ nonlocal holes?
+# Mutual recursion 
 
-I think for composability we need to revert back to generating 2 functions independently & hoping that we call each other.
-1. environment = create a bucket of function names/signatures that will be used for mutual recursion. we are not allowed to create more later
-2. on a call, give the same weight of calling mutual recursion as you calling regular recursion?? are there every any patterns that combine regular w/ mutual recursion? maybe this is where we can hit the edge of optimizations. try putting this into rocq and see if it's accepts
+message: Implement naive mutual recur & language backends
+
+- naive mutual recursion for exactly =2 functions will make the functions available in each other's environments
+- force letrec_constructor step as the first rule
+- implement new language backends for printing in gen_racket, gen_ml
 
 
+## outstanding issues
+TODO: why can't i crash the tracer when it's running for too long? i think it's something to do with calling sys.command, but maybe it's a combo of running it thru dune exec ...
+- https://discuss.ocaml.org/t/app-doesnt-respond-to-ctrl-c-sigint-signals-when-running-dune-exec/2908
 
-# TODO
+
+## implementation of analysis in debugLibrary.ml
+```
+(* 
+assumptions/requirements
+- should work on nonlocal mutual recursion generator, too
+- can probably assume function name prefix on mutuals, which means we might not need to build an environment of them first
+
+planning
+- the exp dump can probably also dump the names of the top-level mutually recursive identifiers for me
+- it would be nice if i can also dump the types of things somewhere so it's easier to debug
+- metric = how many times is X called from Y? how many times is X called from X? how many times do X AND Y call EACH OTHER?
+
+
+what if we just construct a call graph of (var, var, int) list (where int represents the # of times X calls Y) and then 
+  implement a simple algorithm to check if there are edges from A to B and back (and self-edges are also OK)
+
+  https://backtracking.github.io/ocamlgraph/ocamlgraph/Graph/index.html
+  https://anwarmamat.github.io/ocaml/ocamlgraph/
+*)
+
+(* assumes *)
+type mut_rec_info = {
+  mutable a_calls_b : int list;
+  mutable b_calls_a : int;
+  mutable a_self_call : int;
+  mutable b_self_call : int;
+}
+
+(* get the variables/function names representing the top-level mutually recursive functions*)
+(* let get_top_level_muts (es : exp list) : var list = failwith "Not implemented"
+
+let rec analyze_mutual_recursion (es : exp list) : int =
+  let mutuals = get_top_level_muts es in (* initialize the environment*)
+   *)
+```
+
+
+
+
+# pre-December
 - [ ] tuning
   - [ ] discourage nested letrecs in the current form inside loops because they will probably get optimized out anyway?
   - [ ] increase weight of recursive apps 
