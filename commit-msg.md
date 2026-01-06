@@ -1,23 +1,24 @@
 # next steps (big picture)
-- implement tracers in new lang backend
-- finish analysis on the NLREC branch and merge into main
-- implement the nonlocal alternative for mutual rec
+- [ ] move input generator to gen_lang files
+- [ ] why can't i interrupt the tracer with CTRL+C/D when it's running for too long? i think it's something to do with calling sys.command, but maybe it's a combo of running it thru dune exec ...
+      https://discuss.ocaml.org/t/app-doesnt-respond-to-ctrl-c-sigint-signals-when-running-dune-exec/2908
 
-# Mutual recursion 
+- [ ] finish analysis on the NLREC branch and merge into main
+- [ ] implement the nonlocal alternative for mutual rec
 
-message: Implement naive mutual recur & language backends
+# tracer/profiling notes
+I don't know about racket, but ML has a profiler with function call counts. working backwards:
+1. we can dump those metrics into the source code as comments when it's printed
+2. the profile metrics can be re-routed into the source code w/ a little work probably
 
-- naive mutual recursion for exactly =2 functions will make the functions available in each other's environments
-- force letrec_constructor step as the first rule
-- implement new language backends for printing in gen_racket, gen_ml
+https://ocaml.org/manual/5.4/profil.html
+```
+ocamlcp m0.ml -P f
+./a.out
+ocamlprof m0.ml
+```
 
-
-## outstanding issues
-TODO: why can't i crash the tracer when it's running for too long? i think it's something to do with calling sys.command, but maybe it's a combo of running it thru dune exec ...
-- https://discuss.ocaml.org/t/app-doesnt-respond-to-ctrl-c-sigint-signals-when-running-dune-exec/2908
-
-
-## implementation of analysis in debugLibrary.ml
+## analysis planning
 ```
 (* 
 assumptions/requirements
@@ -36,34 +37,12 @@ what if we just construct a call graph of (var, var, int) list (where int repres
   https://backtracking.github.io/ocamlgraph/ocamlgraph/Graph/index.html
   https://anwarmamat.github.io/ocaml/ocamlgraph/
 *)
-
-(* assumes *)
-type mut_rec_info = {
-  mutable a_calls_b : int list;
-  mutable b_calls_a : int;
-  mutable a_self_call : int;
-  mutable b_self_call : int;
-}
-
-(* get the variables/function names representing the top-level mutually recursive functions*)
-(* let get_top_level_muts (es : exp list) : var list = failwith "Not implemented"
-
-let rec analyze_mutual_recursion (es : exp list) : int =
-  let mutuals = get_top_level_muts es in (* initialize the environment*)
-   *)
 ```
 
 
 
 
 # pre-December
-- [ ] tuning
-  - [ ] discourage nested letrecs in the current form inside loops because they will probably get optimized out anyway?
-  - [ ] increase weight of recursive apps 
-  - [ ] decrease weight of letrecs themselves
-- [ ] experiment with non size preserving functions
-- [ ] look at patterns of optimizations
-
 
 ## notes
 I believe an invariant of the simple size algebra system (S = v | S^ | ∞ ) is:
@@ -72,34 +51,7 @@ ie the hole and the non-function elements of the environment have the same base 
 however, if x is a function, then its quantifier is fresh
 
 
-## changes necessary for racket-style printer
-- [ ] better arguments to start with (replace default 100/42)
 
-```
-Starting program (application at the end is for fun): 
-(letrec ([x61 (λ (x62)
-                (match x62
-                  [0 0]
-                  [(? positive?)
-                   (let ([x63 (sub1 x62)])
-                     (x61 x63))]))])
-   (x61 100))
-
-What we need to track
-
-(define hsh (make-hash)) <---------------------
-
-(letrec ([x61 (λ (x62)
-                (match x62
-                  [0 0]
-                  [(? positive?)
-                   (let ([x63 (sub1 x62)])
-                     (hash-set! hsh x61 (add1 (hash-ref hsh x61 ))) ; before recursive app, update
-                     (x61 x63))]))])
-  (hash-set! hsh x61 0) ; in the body of the letrec, initialize & print
-  (x61 100)
-  (displayln (hash-ref hsh x61)))
-```
 
 
 
@@ -109,31 +61,17 @@ What we need to track
 
 
 for later
-- [ ] figure out higher order polymorphism issues 
-  - [ ] lots of places in generator have disabled higher-order scenarios
-  - [ ] only check reachable for constructors & recursive applications (we can change calls of `ty_produces` in library calls to `ty_unify_producer` to skip reachable check)
-- [ ] add more datatypes (eg Tree)
-- [ ] reintroduce useful rules like LET. IF will be covered by match as long as we can make the head expr of a case expression more complex
-- [ ] see features listed in ~meeting-notes/global-todo
 - [ ] how to formulate types like INT inductively? rocq has something like variant = neg nat | pos nat. this wouldn't work directly in our system with TyCons because we're not allowed to put sizes inside nested data structure. i think nested inductives are allowed in CIC^ according to "Is Sized Tying for Coq practical" p. 5
 - [ ] justine's urn implementation (also rewrites interface between generator & rule)
-- [ ] racket-style printer
-- [ ] agda-style printer for sized typechecking?
 
-making useful programs
+tuning
+- [ ] discourage nested letrecs in the current form inside loops because they will probably get optimized out anyway?
+- [ ] increase weight of recursive apps 
+- [ ] decrease weight of letrecs themselves
 - [ ] need to encourage pattern of case right after letrec/lambda
 - [ ] how to produce safe code (eg list-ref within bounds)
 - [ ] how to produce more interesting code than ID functions (provide extra arguments?)
 - [ ] encourage match on the argument of the function (instead of a different variable from the environment)
-
-## not-useless-recursion
-this is our comparison program generator: not-useless with recursion, but no sized types
-
-changes necessary:
-- encourage recursive applications/calls
-- interface might be inconsistent w/ Justine's/current because it was based on Ben's
-
-
 
 
 

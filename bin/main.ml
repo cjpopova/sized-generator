@@ -1,5 +1,6 @@
 open Exp
 open Library
+(* open Analysis *)
 
 (******************* PARAMETERS ********************)
 
@@ -23,7 +24,7 @@ let speclist =
 let outdir = "output/"
 let subdir = outdir ^ string_of_int @@ int_of_float @@ Unix.time ()
 (* in lieu of generating inputs, we will supply default inputs to match the target type above. List = "(make-list 100 0)" *)
-let input = "'(100 42)"
+let input = "[100; 42]"
 
 (************** GENERATE *********************)
 let () =
@@ -42,6 +43,7 @@ let () =
   let get_data_constructors (module L : Language) = L.data_constructors in
   let get_std_lib (module L : Language) = L.std_lib in
   let get_printer (module L : Language) = L.printer in
+  let get_compile_and_run (module L : Language) = L.compile_and_run in
 
 
   (* GENERATION *) 
@@ -73,22 +75,19 @@ let () =
                 Debug.run prerr_newline;
                 p) in
   let fs = generate_batch !fuel !batch_size in
-
-
-  let lang_compile_and_run : string -> string = 
-    match !lang with
-    | "ml" -> (fun file -> 
-      let ot = subdir ^ "/a.out " in
-      "ocamlc -o " ^ ot ^ file 
-      ^ "; timeout 10s ocamlrun " ^ ot
-      ^ "; rm " ^ subdir ^ "/*.cm*")
-    | "rkt" -> (fun file -> "timeout 10s racket " ^ file)
-    | _ -> raise (Util.Unimplemented "lang not supported") in
   
 
   if !mode == 0 then (* print*)
     (Printf.eprintf "num tests: %d\n%!" !batch_size;
-    Seq.iter (fun (e : exp list) -> print_endline (get_printer langM e input)) fs)
+    Seq.iter (fun (es : exp list) -> 
+      (* print_endline "\n======================"; *)
+      print_endline (get_printer langM es input);
+      (* Printf.printf "mutual recursion analysis: ";  
+      List.iter2 (fun count e -> 
+      Printf.printf "[%s %d %d]" (func_var e).var_name count.self_calls count.mutual_calls) 
+      (Analysis.analyze_num_mutual_calls es) es; *)
+    )
+    fs)
   else
     (Printf.printf "num tests: %d\n%!" !batch_size;
     Sys.mkdir subdir 0o755;
@@ -98,5 +97,5 @@ let () =
       Printf.fprintf oc "%s" (get_printer langM e  input);
       close_out oc;
       Printf.printf "test %d\n%!" i; (*flush*)
-      let _ = Sys.command @@ (lang_compile_and_run file) in ())
+      let _ = Sys.command @@ (get_compile_and_run langM subdir file) in ())
     fs)

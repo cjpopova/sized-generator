@@ -1,7 +1,7 @@
 # Sized types for program generation
-A well-typed program generator framework written in OCaml.
+A sized-typed program generator framework written in OCaml focused on generating recursive, terminating programs.
 
-Currently targets Racket.
+Languages targeted: Racket, ML
 
 # Build instructions
 Required:
@@ -21,7 +21,7 @@ to run:
 ```
 dune exec -- sized_generator
 ```
-
+use -h to display command line options
 
 to debug:
 ```
@@ -31,5 +31,5 @@ or:
 ```
 dune utop lib
 open DebugLibrary;;
-generate_exp_wrapper <hole>
-``` (*TODO: fix the debug library interface )
+generate_exp_wrapper example hole;;
+```

@@ -1,8 +1,6 @@
 open Exp
 open Library
 
-(* TODO: needs tracer*)
-
 let data_constructors : data_constructors_t = [
     ["true", [] --> tBool; 
      "false", [] --> tBool ];
@@ -73,8 +71,7 @@ let is_infix f = String.equal "(" (String.sub f 0 1)
 let make_infix f = String.sub f 1 (String.length f - 2)
 
 (******************** main printer function for single expression ********************)
-let ml_string (e : exp) : string =
-  (* main recursive printer *)
+
   let rec ml_str (e : exp) : string = 
     match e with 
     | Var x -> x.var_name
@@ -122,15 +119,13 @@ let ml_string (e : exp) : string =
           clauses constructors)))
       ^ ")"
 
-  in ml_str e
-
 (******************** top level printer for multiple mutually-recursive expressions ********************)
-let ml_complete_string (es : exp list) (input : string): string =
+let printer (es : exp list) (input : string): string =
   (* helper *)
   let letrec_string func params body =
     func.var_name ^ " " 
     ^ type_sig_string func params ^ " =\n"
-    ^ ml_string body
+    ^ ml_str body
   in
   (* let rec f1 ... = ... and f2 ... = ... *)
   match es with 
@@ -148,9 +143,26 @@ let ml_complete_string (es : exp list) (input : string): string =
   
 
 
+let compile_and_run = fun subdir file -> 
+  let ot = subdir ^ "/a.out " in
+  "ocamlc -o " ^ ot ^ file (* specify output binary location*)
+  ^ "; timeout 10s ocamlrun " ^ ot (* run with timeout*)
+  ^ "; rm " ^ subdir ^ "/*.cm*" (* cleanup compilation artifacts*)
+
+let profile = fun subdir file -> 
+  let ot = subdir ^ "/a.out " in
+  "ocamlcp -P -f -o " ^ ot ^ file (* profile function call count specify output binary location*)
+  ^ "; timeout 10s " ^ ot (* run with timeout *)
+  (* *** don't continue if timed out *)
+  ^ "; ocamlprof " ^ file (* produce call-count annotated source code to stdout - *** write back into source code? *)
+  ^ "; rm " ^ subdir ^ "/*.cm*" (* cleanup compilation artifacts; *** clean up profile artifacts *)
+  (* *** get the function call count out of the results *)
+
 let ml_  =
     (module struct
       let data_constructors = data_constructors
       let std_lib = std_lib
-      let printer = ml_complete_string
-    end : Language)
+      let printer = printer
+      let compile_and_run = compile_and_run
+      (* let profile = profile *)
+end : Language)

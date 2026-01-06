@@ -81,7 +81,7 @@ Generally, this rule requires you to find θ such that T = θ[k := α] (precondi
 Instead of unsubstituting, we'll just do θ = T[α := k] where α is the size expression of the variable.
 Only successful substitution are kept. This dismisses cases such as T=k, α=khat where there is not a well-formed function.
 
-For now, we pick only 1 var at a time for unary function. 
+NOTE: For now, we pick only 1 var at a time for unary function. Each element of var_tys is a SINGLE 
 Where the production judgement has a lambda hole of this type:
   □ : ∀k.(d^k τ_2) → θ
 We pass the following type into Rules:
@@ -152,6 +152,7 @@ This rule introduces a recursive function without immediately producing it in �
 The type of □₁ is a function from (some sized type available in the environment) to T
 I am not bothering with subtyping here.
 This is similar to appref in its size subsitution, so I'll have to copy that rule.
+NOTE: unary assumption
 This won't increase the number of recursive calls within the body, but it might increase (or decrease) 
 the number of times a recursive call is started because we don't control e_2. You could increase the number
 of times by increasing the weight of indir_call_ref_step.

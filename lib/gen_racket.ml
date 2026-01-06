@@ -58,7 +58,6 @@ let header : string =
 let var_lst_string (vs : var list) : string = String.concat " " (List.map (fun v -> v.var_name) vs)
 
 (******************** main printer function for single expression ********************)
-let rkt_string (e : exp) : string =
   (* main recursive printer *)
   let rec rkt_str (e : exp) : string = 
     match e with 
@@ -96,7 +95,6 @@ let rkt_string (e : exp) : string =
           clauses constructors))) 
       ^ ")"
 
-  in rkt_str e
 
 (******************** top level printer for multiple mutually-recursive expressions ********************)
 let rkt_complete_string (es : exp list) (input : string): string =
@@ -104,7 +102,7 @@ let rkt_complete_string (es : exp list) (input : string): string =
   String.concat "\n" (List.map (fun e -> 
         match e with 
         | Letrec (func, params, body) -> "(define (" ^ func.var_name ^ " " ^ var_lst_string params ^")\n" 
-          ^ rkt_string body ^ ")"
+          ^ rkt_str body ^ ")"
         | _ -> raise (Util.Impossible "rkt_complete_string: bad exp given"))
         es)
    (* call to the first function *)
@@ -116,4 +114,6 @@ let racket_  =
       let data_constructors = data_constructors
       let std_lib = std_lib
       let printer = rkt_complete_string
+      let compile_and_run = (fun _ file -> "timeout 10s racket " ^ file)
+      (* let profile = fun _ _ -> "" *)
     end : Language)

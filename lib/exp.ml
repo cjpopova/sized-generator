@@ -102,3 +102,8 @@ let new_s_var _ =
   let x = !s_var_counter in
   incr s_var_counter;
   SVar ("i" ^ Int.to_string x)
+
+let func_var (e:exp) : var = 
+  match e with
+  | Letrec (name, _, _) -> name
+  | _ -> raise (Util.Impossible "func_var: bad exp")
