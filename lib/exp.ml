@@ -103,7 +103,11 @@ let new_s_var _ =
   incr s_var_counter;
   SVar ("i" ^ Int.to_string x)
 
+(* SOME HELPERS FOR PRINTING *)
 let func_var (e:exp) : var = 
   match e with
   | Letrec (name, _, _) -> name
   | _ -> raise (Util.Impossible "func_var: bad exp")
+
+let first_func_name (es: exp list) =
+  (match (List.nth es 0) with | Letrec (func, _, _) -> func | _ -> raise (Util.Impossible "first_func_name: bad exp given")).var_name

@@ -19,7 +19,5 @@ let tList sexp ty = TyCons ("list", [ty], sexp)
 module type Language = sig
     val data_constructors : data_constructors_t 
     val std_lib : (string * size_ty) list
-    val printer : exp list -> string -> string
-    val compile_and_run : string -> string -> string
-    (* val profile : string -> string -> string *)
+    val printer : exp list Seq.t -> string -> string
   end;;

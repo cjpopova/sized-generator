@@ -97,23 +97,35 @@ let var_lst_string (vs : var list) : string = String.concat " " (List.map (fun v
 
 
 (******************** top level printer for multiple mutually-recursive expressions ********************)
-let rkt_complete_string (es : exp list) (input : string): string =
-  header ^ "\n\n" ^
+
+(* define set of mutually recursive functions & expose the first one, eg
+(letrec ([m1 (λ (x) ...)]
+         [m2 (λ (x) ...)]
+         ...)
+  m1)
+*)
+
+let mutual_recursive_funcs (es : exp list) : string =
+  "(letrec (" ^
   String.concat "\n" (List.map (fun e -> 
-        match e with 
-        | Letrec (func, params, body) -> "(define (" ^ func.var_name ^ " " ^ var_lst_string params ^")\n" 
-          ^ rkt_str body ^ ")"
-        | _ -> raise (Util.Impossible "rkt_complete_string: bad exp given"))
-        es)
-   (* call to the first function *)
-  ^ "\n(" ^ (match (List.nth es 0) with | Letrec (func, _, _) -> func | _ -> raise (Util.Impossible "rkt_complete_string: bad exp given")).var_name
-  ^ " " ^ input ^ ")"
-  
+    match e with 
+    | Letrec (func, params, body) -> "[" ^ func.var_name ^ " (λ (" ^ var_lst_string params ^")\n" 
+      ^ rkt_str body ^ ")]"
+    | _ -> raise (Util.Impossible "rkt_complete_string: bad exp given"))
+    es)
+  ^ ")\n" ^ first_func_name es ^ ")\n"
+
+let rkt_complete_string (fs : exp list Seq.t) (input : string): string =
+  header ^ "\n\n" 
+  ^ "(define code-list (list\n" ^ 
+  Seq.fold_left (fun acc es -> acc ^ mutual_recursive_funcs es) "" fs
+  ^ "))\n" (* TODO: this should be a loop over exp list list instead*)
+  ^ "(map (λ (code) " ^input^ ") code-list)"
+
+
 let racket_  =
     (module struct
       let data_constructors = data_constructors
       let std_lib = std_lib
       let printer = rkt_complete_string
-      let compile_and_run = (fun _ file -> "timeout 10s racket " ^ file)
-      (* let profile = fun _ _ -> "" *)
     end : Language)

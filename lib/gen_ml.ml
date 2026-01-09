@@ -120,49 +120,32 @@ let make_infix f = String.sub f 1 (String.length f - 2)
       ^ ")"
 
 (******************** top level printer for multiple mutually-recursive expressions ********************)
-let printer (es : exp list) (input : string): string =
-  (* helper *)
-  let letrec_string func params body =
-    func.var_name ^ " " 
-    ^ type_sig_string func params ^ " =\n"
-    ^ ml_str body
-  in
-  (* let rec f1 ... = ... and f2 ... = ... *)
-  match es with 
-  | Letrec (func, params, body) :: t ->
-    header ^ "\n\n" ^
-    "let rec " ^ letrec_string func params body ^ 
-    (if List.is_empty t then "" else "\nand\n") ^
-      String.concat "\nand\n" (List.map (fun e -> 
-        match e with 
-        | Letrec (func, params, body) -> letrec_string func params body
-        | _ -> raise (Util.Impossible "ml_complete_string: bad exp given"))
-        t)
-    ^ "\n in " ^ func.var_name ^ " " ^ input (* call to the first function *)
-  | _ -> raise (Util.Impossible "ml_complete_string: bad exp list given")
-  
 
+(* define set of mutually recursive functions & expose the first one, eg
+(let rec m1 x = ...
+  and m2 x = ...
+  ...
+  in m1)
+*)
+let mutual_recursive_funcs (es : exp list): string =
+  "(let rec " ^
+  String.concat "and " (List.map (fun e -> 
+    match e with 
+    | Letrec (func, params, body) -> func.var_name ^ type_sig_string func params ^ " =\n"
+      ^ ml_str body
+    | _ -> raise (Util.Impossible "rkt_complete_string: bad exp given"))
+    es)
+  ^ "in " ^ first_func_name es ^ ")\n"
 
-let compile_and_run = fun subdir file -> 
-  let ot = subdir ^ "/a.out " in
-  "ocamlc -o " ^ ot ^ file (* specify output binary location*)
-  ^ "; timeout 10s ocamlrun " ^ ot (* run with timeout*)
-  ^ "; rm " ^ subdir ^ "/*.cm*" (* cleanup compilation artifacts*)
-
-let profile = fun subdir file -> 
-  let ot = subdir ^ "/a.out " in
-  "ocamlcp -P -f -o " ^ ot ^ file (* profile function call count specify output binary location*)
-  ^ "; timeout 10s " ^ ot (* run with timeout *)
-  (* *** don't continue if timed out *)
-  ^ "; ocamlprof " ^ file (* produce call-count annotated source code to stdout - *** write back into source code? *)
-  ^ "; rm " ^ subdir ^ "/*.cm*" (* cleanup compilation artifacts; *** clean up profile artifacts *)
-  (* *** get the function call count out of the results *)
+let ml_complete_string (fs : exp list Seq.t) (input : string): string = 
+  header ^ "\n\n" ^
+  "let code_list = ["
+  ^ Seq.fold_left (fun acc es -> acc ^ mutual_recursive_funcs es ^ ";") "" fs
+  ^ "]\n in List.map (fun code -> " ^input^ ") code_list"
 
 let ml_  =
     (module struct
       let data_constructors = data_constructors
       let std_lib = std_lib
-      let printer = printer
-      let compile_and_run = compile_and_run
-      (* let profile = profile *)
+      let printer = ml_complete_string
 end : Language)
