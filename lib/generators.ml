@@ -45,28 +45,19 @@ let var_steps weight (generate : hole_info -> exp) (hole : hole_info) (acc : rul
     | _ -> TypeUtil.is_size_subtype_ty v.var_ty hole.ty)
     hole.env in
   steps_generator hole acc
-                  Rules.var_step weight generate ref_vars
+                Rules.var_step weight generate ref_vars
 
-let lambda_steps weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
-   (*Debug.run (fun () -> Printf.eprintf "considering lambda\n"); *)
-  match hole.ty with
-  | TyArrow _ ->
-    singleton_generator weight Rules.func_constructor_step hole acc generate
-  | _ -> acc
 
 (*
 Γ, x : (d^ihat τ), f : (d^i τ) → θ ⊢
 □ : θ[i := ihat] ↝ e
--------------------------------------- (LETREC)
+-------------------------------------- (REC)
 Γ ⊢ □ : ∀i.(d^i τ) → θ ↝ funrec x.e
 *)
-let letrec_steps weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
+let funrec_steps weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
    (*Debug.run (fun () -> Printf.eprintf "considering letrec\n"); *)
   match hole.ty with
-  | TyArrow (Q _, ty_params, _) ->
-    if List.exists (fun ty -> Inf != TypeUtil.size_exp_of_ty ty) ty_params then (* At least one sized argument.  TODO the sized argument should be the first one *)
-    singleton_generator weight (Rules.letrec_constructor_step None) hole acc generate
-    else acc
+  | TyArrow (Q _, _, _) -> singleton_generator weight (Rules.funrec_step None) hole acc generate
   | _ -> acc
 
 (* generate a fresh arrow type for an application using existing variables as arguments
@@ -156,10 +147,20 @@ NOTE: unary assumption
 This won't increase the number of recursive calls within the body, but it might increase (or decrease) 
 the number of times a recursive call is started because we don't control e_2. You could increase the number
 of times by increasing the weight of indir_call_ref_step.
+
+
+TODO 2026-01-09: how do we extend to base-types, eg s.t. 
+let x : base-type = e1 in e2
+How do we choose base-type intelligently?
+- something accepted by the domain of a function in the environment (eg can be consumed)
+
+Actually, this could pick a type we can't produce (for example if we're generating foo, and we pick foo's domain when we don't have access to something SMALL enough)
+  ... the type we pick should also be REACHABLE.
+
 *)
-let nest_letrec weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
+let let_function weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
   match hole.ty with
-  | TyCons _ -> (* NOTE: Only allow first-order holes to be filled *)
+  | TyCons _ -> (* TODO: Only allow first-order holes to be filled - this shouldn't be a requirement?? *)
     (*Debug.run (fun () -> Printf.eprintf "considering nest_letrec\n"); *)
     (* construct a function type*)
     let k = new_s_var () in
@@ -176,8 +177,43 @@ let nest_letrec weight (generate : hole_info -> exp) (hole : hole_info) (acc : r
       | _ -> None)
         hole.env in
       steps_generator hole acc
-        Rules.nest_letrec_step weight generate types
+        Rules.let_step weight generate types
   | _ -> acc
+
+(* attempt #2*)
+(* let let_base2 weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
+  (*Debug.run (fun () -> Printf.eprintf "considering nest_letrec\n"); *)
+
+  (* list of all reachable types in the environment *)
+  (* NOTE: higher-order functions are excluded here *)
+  let rec get_reachable (t : size_ty) : size_ty list = 
+  match t with
+    | TyCons _ -> [TypeUtil.resize_ty t Inf]
+    | TyArrow (U _, _, cod) -> if is_func cod 
+      then                               get_reachable(cod)  
+      else TypeUtil.resize_ty cod Inf :: get_reachable(cod) 
+      
+    | TyArrow (Q _, _, cod) -> if is_func cod 
+      then                               get_reachable(cod)(* ok now what do we do with the sizes?? see notebook - for now subst with Inf*)  
+      else TypeUtil.resize_ty cod Inf :: get_reachable(cod) 
+      
+    | _ -> []
+  in
+  let types = List.map (fun v -> get_reachable v.var_ty) hole.env in
+  steps_generator hole acc
+        Rules.let_step weight generate (List.flatten types) *)
+
+(* attempt #3 *)
+
+let let_base2 weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
+  (*Debug.run (fun () -> Printf.eprintf "considering nest_letrec\n"); *)
+  let types : SizeTySet.t = SizeTySet.of_list (List.fold_left (fun acc v -> 
+    TypeUtil.computeT v.var_ty hole.env @ acc) 
+    []
+    hole.env)
+  in
+  steps_generator hole acc
+        Rules.let_step weight generate (SizeTySet.to_list types)
 
 (************************)
 
@@ -238,7 +274,20 @@ let base_constructor_steps (base_data_cons : data_constructors_t)
                   Rules.base_constructor_step weight generate (filter_constructors base_data_cons hole)
   | _ -> acc
 
-(* NOTE: for now, we allow only variables with a size-hat to be at the head of `case` *)
+(* 
+cₖ : θₖ → d
+Γ, y : θₖ ⊢ □ₖ : T  ↝ eₖ
+1 ≤ k ≤ n
+------------------------------------------------------- (CASE)
+Γ, x : (d^α τ) ⊢ □ : T ↝ 
+(match e with 
+  | c₁ y ... -> e₁ 
+   ... 
+  | cₙ y ... -> eₙ)
+
+NOTE: for now, we allow only variables with a size-hat to be at the head of `case`
+We really shouldn't do that to allow for further subsizing
+*)
 let case_steps (data_cons : data_constructors_t)
                    weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
    (*Debug.run (fun () -> Printf.eprintf "considering case\n"); *)
@@ -271,12 +320,12 @@ let main (lib : library) : generators_t =
     data_cons in
   [
     var_steps                       ( w_const 2.        );
-    (* lambda_steps                    ( w_fuel_base 0. 0. ); *)
-    letrec_steps                    ( w_fuel_base 3. 1. );
+    funrec_steps                    ( w_fuel_base 3. 1. );
     fresh_call_ref_step             ( w_fuel_base 1. 0. );
     indir_call_ref_step             ( w_fuel      3.    );
     indir_call_recur_step           ( w_fuel      10.   );
-    nest_letrec                     ( w_fuel      10.   );
+    let_function                    ( w_fuel      10.   );
+    let_base2                       ( w_fuel      4.    );
     std_lib_steps call_std_lib      ( w_fuel      2.    );
     base_std_lib_steps base_std_lib ( w_const 1.        );
     recur_constructor_steps recur_data_cons     ( w_fuel_base 2. 0. );

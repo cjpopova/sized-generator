@@ -20,7 +20,7 @@ let speclist =
 (************** GENERATE *********************)
 let () =
   Arg.parse speclist (fun _ -> ())
-    "sized_generator [-n <1>] [-size <10>] [-seed <-1>] [-print_or_trace <0>] [-lang <ml>]";
+    "sized_generator [-n <1>] [-size <10>] [-seed <-1>] [-lang <ml>]";
   (if !seed < 0
    then Random.self_init ()
    else Random.init !seed);

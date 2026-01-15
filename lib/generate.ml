@@ -46,8 +46,8 @@ let generate_fp (steps : generators_t) (size : int) (tys : size_ty list) : exp l
         ty=ty2
       } in
     [
-      Rules.letrec_constructor_step (Some m1) generate_exp_wrapper hole1 () (* force letrec as first rule *) ;
-      Rules.letrec_constructor_step (Some m2) generate_exp_wrapper hole2 () (* force letrec as first rule *) ;
+      Rules.funrec_step (Some m1) generate_exp_wrapper hole1 () (* force letrec as first rule *) ;
+      Rules.funrec_step (Some m2) generate_exp_wrapper hole2 () (* force letrec as first rule *) ;
       
     ])
   | _ -> raise (Util.Unimplemented (Format.sprintf "Supports exactly 2 mutually recursive functions" ))

@@ -215,9 +215,9 @@ reachable T Γ : bool=
 let rec ty_unify_producer (maybe : size_ty) (target : size_ty) : size_ty option =
   match maybe with
   | TyArrow (U _, _, cod) -> 
-  (* Unquantified - no substitution required (generated recursive functions are never type-polymorphic,
-  and we can't requantify the size, so subtyping works here) *)
-  if is_size_subtype_ty cod target then Some maybe else None
+    (* Unquantified - no substitution required (generated recursive functions are never type-polymorphic,
+    and we can't requantify the size, so subtyping works here) *)
+    if is_size_subtype_ty cod target then Some maybe else None
   | TyArrow (Q q, doms, cod) -> (* Quantified *)
     (try
       let s = unify_one_hat cod target in
@@ -233,13 +233,54 @@ and ty_produces (maybe : size_ty) (target : size_ty) (env : env) : size_ty optio
   let smaller_env = List.filter (fun v -> v.var_ty != maybe) env in (* NOTE: set comprehension would be more efficient *)
   match ty_unify_producer maybe target with
   | Some TyArrow(_, doms, _) as t-> 
-    if List.for_all (fun dom -> reachable dom smaller_env) doms
+    if List.for_all (reachable smaller_env) doms
       then t
       else None
   | _ -> None
-and reachable t env = List.exists 
+and reachable (env:env) (t:size_ty) = List.exists 
   (fun {var_ty=var_ty; _} -> is_size_subtype_ty var_ty t || Option.is_some (ty_produces var_ty t env))
   env
+
+(********************** LET_BASE **************************************)
+
+(* given the first, decreasing argument type, generate a list of size_exps of arguments from the environment that satisfy it *)
+let helper (a:size_ty) (env:env) : size_exp list =
+  if is_func a  (* NOTE: first-order simplification *)
+  then []
+  (* functions - duplicate logic of ty_produces
+  we also need to UNFOLD higher order function in the result to their base result
+  *)
+  else
+    (List.filter_map (fun v -> 
+      if is_flat_subtype_ty v.var_ty a then Some (size_exp_of_ty v.var_ty) else None)
+      env)
+
+
+  
+
+
+
+(* given one function from the environment, check that it is reachable and return a list of type Ts based on its codomain, depending on how it is reachable
+does not attempt deduplication here *)
+let computeT (ty:size_ty) (env:env) = 
+  (* check that it's a function
+  call a helper function to extract the ?? from argument's reachable set
+  *)
+  match ty with
+  | TyArrow(_, [], cod) -> [cod] (* If the function has no arguments (highly unlikely) then no checks are necessary and its codomain is unsized *)
+  (* todo U k case of TyArrow*)
+  | TyArrow(Q k, dom1 :: doms, cod) ->
+    if List.exists is_func (dom1::doms) then [] (* NOTE: first order functions only - excludes anything where a domain is a function*)
+    else
+      let smaller_env = List.filter (fun v -> v.var_ty != ty) env in (* NOTE: set comprehension would be more efficient *)
+      if List.for_all (reachable smaller_env) doms then (* check reachability of the non-decreasing arguments*)
+        List.map (subst_size_of_ty cod k) (helper dom1 env)
+      else []  
+    (* we're going to have a problem if the function is unquantified ... assume Q k for now*)
+    
+  | _ -> [] (* ignore non-function types *)
+
+
 
 (********************** CONSTRUCTORS **********************************)
 

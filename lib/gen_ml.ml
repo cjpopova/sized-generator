@@ -49,9 +49,7 @@ let nat_min (x : int) (y : int): int = if y >= x then 0 else (x-y);; (* defn of 
 (* string of variable names with space separators*)
 let var_lst_string (vs : var list) : string = String.concat " " (List.map (fun v -> v.var_name) vs)
 
-(* type signature for functions *)
-let type_sig_string (f : var) (params : var list) : string =
-  let rec show_unsized_ty ty = 
+let rec show_unsized_ty ty = 
   match ty with
   | TyVar (name, _) -> name
   | TyCons (name, [], _) -> name 
@@ -59,7 +57,9 @@ let type_sig_string (f : var) (params : var list) : string =
   | TyArrow(_, doms, cod) ->
      "(" ^ List.fold_right (fun ty acc -> show_unsized_ty ty ^ " -> " ^ acc) doms "" 
      ^ show_unsized_ty cod ^ ")"
-  in
+
+(* type signature for functions *)
+let type_sig_string (f : var) (params : var list) : string =
   match f.var_ty with
   | TyArrow(_, _, cod) ->
     String.concat " " (List.map (fun v -> "(" ^ v.var_name ^ ":" ^ show_unsized_ty v.var_ty ^ ")") params)
@@ -75,7 +75,6 @@ let make_infix f = String.sub f 1 (String.length f - 2)
   let rec ml_str (e : exp) : string = 
     match e with 
     | Var x -> x.var_name
-    | Lambda (_, _) -> raise (Util.Unimplemented (Format.sprintf "ml_string: Lambda"))
     | App (func, args) ->  (* (func args) *)
       (match func, args with
       | ExtRef (f, _), [e1; e2] when is_infix f ->
@@ -88,13 +87,9 @@ let make_infix f = String.sub f 1 (String.length f - 2)
       "(let rec " ^ func.var_name ^ " " 
       ^ type_sig_string func params ^ " =\n"
       ^ ml_str body ^ " in " ^ func.var_name ^")"
-    
-    | NLetrec (func, params, func_body, let_body)  ->
-      "(let rec " ^ func.var_name ^ " " 
-      ^ type_sig_string func params ^ " =\n"
-      ^ ml_str func_body ^ " in \n" 
-      ^ ml_str let_body ^")"
-
+    | Let (x,v,body) -> "(let rec " ^ x.var_name ^ " : " ^ show_unsized_ty x.var_ty ^ " =\n"
+      ^ ml_str v ^ " in \n" 
+      ^ ml_str body ^")"
     | ExtRef (name, _) -> name
     | Case (e, ty, clauses) -> (* (match e with | D (x ...) -> e_1) ... ) *)
       "(match " ^ ml_str e ^ " with \n" ^ 

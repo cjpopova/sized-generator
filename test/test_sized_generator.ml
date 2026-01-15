@@ -6,7 +6,7 @@ open TypeUtil
 
 let tBoolInf = TyCons ("Bool", [], Inf)
 
-(* we do a little cheating with printers *)
+(* we do a little cheating with printers to generate testable types *)
 
 type sexp_opt = size_exp option
 [@@deriving show]
@@ -23,6 +23,16 @@ let sizetyopt = Alcotest.testable pp_size_ty_option (=)
 let sizety = Alcotest.testable pp_size_ty (=)
 
 let subst_hat = Alcotest.testable pp_substitution_hat (=)
+
+type sexp_list = size_exp list
+[@@deriving show]
+let sexplist = Alcotest.testable pp_sexp_list (=)
+
+
+type sizety_list = size_ty list
+[@@deriving show]
+let sizetylist = Alcotest.testable pp_sizety_list (=)
+
 
 (********************************** TESTS **********************************)
 
@@ -213,6 +223,37 @@ let test_mono_reachable_producer () =
     Alcotest.(check sizetyopt) (string_of_int n) e (ty_produces maybe target env))
     test_list
 
+(*********** LET_FUNCTION ***********)
+
+let let_base_helper () =
+  let input1 = tNat i, [tNat j; tNat (SHat j); tNat Inf] in (* Nat ∞, {Nat j, Nat j^; Nat ∞} -> [j, j^, ∞]*)
+  let expected1 = [j; (SHat j); Inf] in
+
+ let test_list = [
+    input1, expected1;
+    (* input2, expected2; *)
+    ] in
+  List.iteri (fun n ((dom, ty_env), e) -> 
+    let env = List.map (fun ty -> new_var ty) ty_env in
+    Alcotest.(check sexplist) (string_of_int n) e (helper dom env))
+    test_list
+
+let let_base_computeT () = 
+  let input1 = TyArrow(Q k, [tNat k], tNat k), [tNat j; tNat Inf] in 
+  let expected1 = [tNat j; tNat Inf] in (* ∀k.Nat^k -> Nat^k, {Nat j, Nat ∞} -> [Nat^j, Nat∞]*)
+
+  let input2 = TyArrow(Q k, [tNat k; tList Inf (tNat Inf)], tNat k), [tNat j; tNat Inf] in 
+  let expected2 = [] in (* rejected: 2nd argument isn't reachable because environment doesn't have lists*)
+
+ let test_list = [
+    input1, expected1;
+    input2, expected2;
+    ] in
+  List.iteri (fun n ((fTy, ty_env), e) -> 
+    let env = List.map (fun ty -> new_var ty) ty_env in
+    Alcotest.(check sizetylist) (string_of_int n) e (computeT fTy env))
+    test_list
+
 (*******************************************************)
 
 let () =
@@ -233,4 +274,9 @@ let () =
         test_case "monomorphic producer"              `Quick test_mono_producer_unification;  
         test_case "monomorphic reachable producer"    `Quick test_mono_reachable_producer;
         ];
+      "let_base", [
+        test_case "helper"                            `Quick let_base_helper;
+        test_case "computeT"                          `Quick let_base_computeT
+        
+      ]
     ]

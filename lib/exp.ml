@@ -47,10 +47,9 @@ let pp_size_ty fmt ty = Format.fprintf fmt "%s" (show_size_ty ty)
 type exp =
   (* | Hole of flat_ty * env *)
   | Var of var
-  | Lambda of ((var list) * exp)
   | App of (exp * (exp list))
-  | Letrec of (var * (var list) * exp) (*  (letrec ([f (λ (params) body)]) f)  *)
-  | NLetrec of (var * (var list) * exp * exp) (*  Nested letrec := (letrec ([f (λ (params) e_func_body)]) e_let_body)  *)
+  | Letrec of (var * (var list) * exp) (*  (funrec ([f (λ (params) body)]) f)  *)
+  | Let of (var * exp * exp)
   | ExtRef of string * size_ty (* the size_ty isn't ever used *)
   | Case of exp * size_ty * ((var list * exp) list) (* case e \tau of { (x ... -> e_1) ... } *)
 (* [@@deriving show] *)
@@ -104,6 +103,11 @@ let new_s_var _ =
   SVar ("i" ^ Int.to_string x)
 
 (* SOME HELPERS FOR PRINTING *)
+let is_func (t:size_ty) : bool = 
+  match t with
+  | TyArrow _ -> true
+  | _ -> false
+
 let func_var (e:exp) : var = 
   match e with
   | Letrec (name, _, _) -> name
@@ -111,3 +115,21 @@ let func_var (e:exp) : var =
 
 let first_func_name (es: exp list) =
   (match (List.nth es 0) with | Letrec (func, _, _) -> func | _ -> raise (Util.Impossible "first_func_name: bad exp given")).var_name
+
+(* defining sets for size_tys requires creating an ordering function *)
+module SizeTyOrdered = struct
+  type t = size_ty
+  let compare x1 x2 = compare x1 x2
+end
+module SizeTySet = Set.Make(SizeTyOrdered)
+
+(* ─( 16:56:37 )─< command 0 >────────────────────────────────────────────────────────────────────────────────{ counter: 0 }─
+utop # open Exp;;
+─( 16:56:37 )─< command 1 >────────────────────────────────────────────────────────────────────────────────{ counter: 0 }─
+utop # let mys = SizeTySet.of_list [TyVar("X",Inf); TyVar("X",Inf)];;
+val mys : SizeTySet.t = <abstr>
+─( 16:57:16 )─< command 2 >────────────────────────────────────────────────────────────────────────────────{ counter: 0 }─
+utop # SizeTySet.to_list mys;;
+- : size_ty list = [TyVar ("X", Inf)]
+─( 16:57:51 )─< command 3 >────────────────────────────────────────────────────────────────────────────────{ counter: 0 }─
+utop #  *)

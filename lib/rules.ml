@@ -7,20 +7,8 @@ let var_step (_ : generate_t) (_ : hole_info) (var : var) =
 
 (***************************************************************)
 
-(* Creates a lambda *)
-let func_constructor_step (generate : generate_t) (hole : hole_info) =
-  match TypeUtil.size_up_ty hole.ty with
-  | TyArrow (Q _, ty_params, ty') ->
-     fun () ->
-     Debug.run (fun () -> Printf.eprintf ("creating lambda\n"));
-     let xs = List.map (fun t -> Exp.new_var t) ty_params in
-     let body_hole = { hole with ty=ty'; env=xs@hole.env } in
-     Exp.Lambda (xs, generate body_hole)
-  | _ -> fun () ->
-    raise (Util.Impossible (Format.sprintf "function constructor on non-function or unquantified type: %s" (show_size_ty hole.ty)))
-
 (* Creates a funrec (named function with recursive call) *)
-let letrec_constructor_step (f : var option) (generate : generate_t) (hole : hole_info)=
+let funrec_step (f : var option) (generate : generate_t) (hole : hole_info)=
   let hat_func = TypeUtil.size_up_ty hole.ty in 
   match hat_func with
   | TyArrow (_, ty_params, ty') ->
@@ -55,7 +43,7 @@ let letrec_constructor_step (f : var option) (generate : generate_t) (hole : hol
 let fresh_call_ref_step (generate : generate_t) (hole : hole_info) (var, func_ty : var * size_ty) = (* NOTE: this is unary *)
   fun () ->
   Debug.run (fun () -> Printf.eprintf ("creating APPREF (argument = %s)\n") (show_var var));
-  (* TODO: do something fun with the types (see 7-11 meeting note)*)
+  (* NOTE: do something fun with the types (see 7-11 meeting note)*)
   let func_hole = {hole with ty=func_ty} in
   App(generate func_hole, List.map (fun v -> Var v) [var])
 
@@ -68,22 +56,15 @@ let indir_call_ref_step (generate : generate_t) (hole : hole_info) (var, ty : Ex
     Exp.App (Exp.Var var, args)
   | _ -> raise (Util.Impossible "indir_call_ref_step on non-function type")
   
-let nest_letrec_step (generate : generate_t) (hole : hole_info) (tau1 : Exp.size_ty)  =
-  let hat_func = TypeUtil.size_up_ty tau1 in 
-  match hat_func with
-  | TyArrow (_, ty_params, ty') ->
-     fun () ->
-     Debug.run (fun () -> Printf.eprintf ("creating nest letrec\n"));
-     let f = Exp.new_var (TypeUtil.unquantify_ty tau1) ~prefix:"f" in
-     let xs = List.map (fun t -> Exp.new_var t) ty_params in
-     let func_env = f::xs@hole.env in (* uses the unquantified f (and arguments) inside the body of the function *)
-     let let_env = {f with var_ty=tau1}::hole.env in (* allowed quantification over other sized outside the function, in the let*)
-     let func_hole = { hole with ty=ty'; env=func_env} in
-     let body_hole = { hole with ty=hole.ty; env=let_env } in
-     Exp.NLetrec (f, xs, generate func_hole, generate body_hole)
-  | _ -> fun () ->
-         raise (Util.Impossible "nest letrec constructor on non-function type")
-
+let let_step (generate : generate_t) (hole : hole_info) (tau1 : Exp.size_ty)  =
+  fun () ->
+  let x = Exp.new_var tau1 ~prefix:"n" in
+  Debug.run (fun () -> Printf.eprintf ("creating let with %s : %s\n") (x.var_name) (show_size_ty x.var_ty));
+  let val_hole = { hole with ty=tau1; env=hole.env} in
+  let let_env = {x with var_ty=tau1}::hole.env in (*  extend environment in the body *)
+  let body_hole = { hole with ty=hole.ty; env=let_env } in
+  Exp.Let (x, generate val_hole, generate body_hole)
+  
 (***************************************************************)
 
 let call_std_lib_step (generate : generate_t) (hole : hole_info) ((name, ty) : (string * Exp.size_ty))  =

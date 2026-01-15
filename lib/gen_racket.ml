@@ -62,18 +62,22 @@ let var_lst_string (vs : var list) : string = String.concat " " (List.map (fun v
   let rec rkt_str (e : exp) : string = 
     match e with 
     | Var x -> x.var_name
-    | Lambda (_, _) -> raise (Util.Unimplemented (Format.sprintf "rkt_string: Lambda"))
     | App (func, args) ->  (* (func args) *)
       "(" ^ rkt_str func ^ " " ^ String.concat " " (List.map rkt_str args) ^ ")"
+    
     | Letrec (func, params, body) -> (*  (letrec ([f (λ (params) body)]) f)  *)
       "(letrec ([" ^ func.var_name ^ " (λ (" ^ var_lst_string params ^ ") \n"
       ^ rkt_str body ^ ")])\n" ^ func.var_name ^")"
-    | NLetrec (func, params, func_body, let_body)  -> (*  Nested letrec := (letrec ([f (λ (params) e_func_body)]) e_let_body) *)
-      "(letrec ([" ^ func.var_name ^ " (λ (" ^ var_lst_string params ^ ") \n"
-      ^ rkt_str func_body ^ ")])\n" 
+    
+    | Let (x, v, let_body)  -> (*  Nested letrec := (letrec ([f (λ (params) e_func_body)]) e_let_body) *)
+      "(let ([" ^ x.var_name ^ " \n" 
+      ^ rkt_str v ^ "])\n" 
       ^ rkt_str let_body ^")"
+
+  
     | ExtRef (name, _) -> name
-    | Case (e, ty, clauses) -> (* (match e [(D x ...) e_1)] ... ) *)
+    
+      | Case (e, ty, clauses) -> (* (match e [(D x ...) e_1)] ... ) *)
       "(match " ^ rkt_str e ^ "\n" ^ 
       (match ty with
       | TyCons ("int", _, _) ->
@@ -119,7 +123,7 @@ let rkt_complete_string (fs : exp list Seq.t) (input : string): string =
   header ^ "\n\n" 
   ^ "(define code-list (list\n" ^ 
   Seq.fold_left (fun acc es -> acc ^ mutual_recursive_funcs es) "" fs
-  ^ "))\n" (* TODO: this should be a loop over exp list list instead*)
+  ^ "))\n"
   ^ "(map (λ (code) " ^input^ ") code-list)"
 
 

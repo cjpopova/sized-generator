@@ -1,8 +1,14 @@
+Implement LET_BASE
+- replace Exp.NLetrec with Exp.Let which handles both base and function type let-bindings
+- see size_subst problem
+- will have to squash commits becuase i want to commit the simplest possible working version first
+
+
 # next steps (big picture)
 - [ ] move input generator to gen_lang files
 - [ ] why can't i interrupt the tracer with CTRL+C/D when it's running for too long? i think it's something to do with calling sys.command, but maybe it's a combo of running it thru dune exec ...
       https://discuss.ocaml.org/t/app-doesnt-respond-to-ctrl-c-sigint-signals-when-running-dune-exec/2908
-
+- [ ] remove UNIFIER when working on HO polymorphism
 - [ ] finish analysis on the NLREC branch and merge into main
 - [ ] implement the nonlocal alternative for mutual rec
 
