@@ -124,13 +124,13 @@ let make_infix f = String.sub f 1 (String.length f - 2)
 *)
 let mutual_recursive_funcs (es : exp list): string =
   "(let rec " ^
-  String.concat "and " (List.map (fun e -> 
+  String.concat " and " (List.map (fun e -> 
     match e with 
     | Letrec (func, params, body) -> func.var_name ^ type_sig_string func params ^ " =\n"
       ^ ml_str body
     | _ -> raise (Util.Impossible "rkt_complete_string: bad exp given"))
     es)
-  ^ "in " ^ first_func_name es ^ ")\n"
+  ^ " in " ^ first_func_name es ^ ")\n"
 
 let ml_complete_string (fs : exp list Seq.t) (input : string): string = 
   header ^ "\n\n" ^
