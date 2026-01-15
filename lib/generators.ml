@@ -323,9 +323,9 @@ let main (lib : library) : generators_t =
     funrec_steps                    ( w_fuel_base 3. 1. );
     fresh_call_ref_step             ( w_fuel_base 1. 0. );
     indir_call_ref_step             ( w_fuel      3.    );
-    indir_call_recur_step           ( w_fuel      10.   );
-    let_function                    ( w_fuel      10.   );
-    let_base2                       ( w_fuel      4.    );
+    indir_call_recur_step           ( w_fuel      3.   );
+    let_function                    ( w_fuel      3.   );
+    let_base2                       ( w_fuel      3.    );
     std_lib_steps call_std_lib      ( w_fuel      2.    );
     base_std_lib_steps base_std_lib ( w_const 1.        );
     recur_constructor_steps recur_data_cons     ( w_fuel_base 2. 0. );

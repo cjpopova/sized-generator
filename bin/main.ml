@@ -43,30 +43,13 @@ let () =
     Generate.generate_fp 
       steps
       fuel (* target type: *)
-      (* [
-        (TyArrow(Q (SVar "k"), [tNat (SVar "k"); tNat Inf], tNat (SVar "k"))); (* these need to use the same quantifier *)
-        (TyArrow(Q (SVar "k"), [tNat (SVar "k"); tNat Inf], tNat (SVar "k"))) 
-      ] *)
-      (* [
-        (TyArrow(Q (SVar "k"), [tList (SVar "k") (tNat Inf)], tList (SVar "k") (tNat Inf)));
-        (TyArrow(Q (SVar "k"), [tList (SVar "k") (tNat Inf)], tList (SVar "k") (tNat Inf)))
-      ] *)
-      [
-        TyArrow (Q (SVar "k"), [tNat (SVar "k")],
-                              TyArrow(Q (SVar "j"), [tNat (SVar "j")], tNat Inf));
-        TyArrow (Q (SVar "k"), [tNat (SVar "k")],
-                              TyArrow(Q (SVar "j"), [tNat (SVar "j")], tNat Inf));
-      ]
-      (* (TyArrow(Some (SVar "k"), [tNat (SVar "k"); tNat Inf], tNat Inf)) *)
-      (* ([tBool] --> tBool) *)
-      (* ([tList i (tNat Inf)] --> tList i (tNat Inf)) *)
-      (* ([tList i (tNat Inf); tList Inf (tNat Inf)] --> (tList Inf (tNat Inf)))  *)
+      [ nat_func1; nat_func1 ]
   in
   (* Assume `code` is the name of the function to call. Format the function call & inputs appropriately. Examples:
   ((code 100) 42)     rkt : int -> int -> _
   code [100; 42]      ml : int list -> _
   *)
-  let input = "((code 100) 42)" in
+  let input = "(code 10 42)" in
   let generate_batch fuel batch_size =
     Seq.init batch_size
               (fun _ ->

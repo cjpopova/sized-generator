@@ -5,12 +5,12 @@ Implement LET_BASE
 
 
 # next steps (big picture)
-- [ ] move input generator to gen_lang files
-- [ ] why can't i interrupt the tracer with CTRL+C/D when it's running for too long? i think it's something to do with calling sys.command, but maybe it's a combo of running it thru dune exec ...
-      https://discuss.ocaml.org/t/app-doesnt-respond-to-ctrl-c-sigint-signals-when-running-dune-exec/2908
-- [ ] remove UNIFIER when working on HO polymorphism
-- [ ] finish analysis on the NLREC branch and merge into main
+- [ ] finish LET_BASE (see above)
 - [ ] implement the nonlocal alternative for mutual rec
+- [ ] move input generator to gen_lang files
+- [ ] remove UNIFIER.ml file when working on HO polymorphism
+- [ ] finish analysis on the NLREC branch and merge into main
+
 
 # tracer/profiling notes
 I don't know about racket, but ML has a profiler with function call counts. working backwards:

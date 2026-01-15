@@ -46,11 +46,11 @@ let std_lib = [
 (*************************************************************************************************************************)
 
 let header : string =  
-"#lang racket\n
-(define nat_min
+(* #lang racket\n *)
+  "(let ([nat_min
 (λ x
   (define y (apply - x))
-  (if (negative? y) 0 y)))\n
+  (if (negative? y) 0 y))])\n
 "
 
 (******************* HELPERS *******************)
@@ -124,7 +124,7 @@ let rkt_complete_string (fs : exp list Seq.t) (input : string): string =
   ^ "(define code-list (list\n" ^ 
   Seq.fold_left (fun acc es -> acc ^ mutual_recursive_funcs es) "" fs
   ^ "))\n"
-  ^ "(map (λ (code) " ^input^ ") code-list)"
+  ^ "(map (λ (code) " ^input^ ") code-list))"
 
 
 let racket_  =
