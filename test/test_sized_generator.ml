@@ -185,11 +185,15 @@ let test_mono_producer_unification () =
   let input3 = TyArrow(U k, [tNat k], tNat k), tNat k in (* foo : k -> k, k  ~>   k -> k *)             (* unquantified recursive call *)
   let expected3 = Some (TyArrow(U k, [tNat k], tNat k)) in
 
+  let input4 =  [tNat i; tNat Inf] --> tNat Inf, tNat Inf in (* add : ∀i. Nati -> Nat -> Nat, Nat inf ~> add *)
+  let expected4 = Some ([tNat Inf; tNat Inf] --> tNat Inf) in
+
   let test_list = [
     input0, expected0;
     input1, expected1;
     input2, expected2;
     input3, expected3;
+    input4, expected4;
     ] in
   List.iteri (fun n ((maybe, target),e) -> Alcotest.(check sizetyopt) (string_of_int n) e (ty_unify_producer maybe target))
     test_list
@@ -211,12 +215,22 @@ let test_mono_reachable_producer () =
   let input4 = TyArrow(U k, [tNat k], tNat k), tNat Inf, [tNat i] in (* foo : k -> k, _, i  ~>   fail *)      (* unquantified recursive call on wrong size variable*)
   let expected4 = None in
 
+  let input5 = [tNat i; tNat Inf] --> tNat Inf, tNat Inf, [ (* does + produce Nat Inf under this environment? *)
+      [tNat (SVar "i75")] --> tNat Inf ;
+      tNat (SHat (SVar "i75")) ;
+      tNat Inf ;
+      [tNat k; tNat Inf] --> tNat Inf ;
+      tNat khat ;
+    ] in
+  let expected5 = Some([tNat Inf; tNat Inf] --> tNat Inf) in
+
   let test_list = [
     input0, expected0;
     input1, expected1;
     input2, expected2;
     input3, expected3;
     input4, expected4;
+    input5, expected5;
     ] in
   List.iteri (fun n ((maybe, target, ty_env),e) -> 
     let env = List.map (fun ty -> new_var ty) ty_env in (* turn types into vars for environment *)

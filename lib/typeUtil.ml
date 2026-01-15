@@ -182,6 +182,10 @@ and unify_hat (s : (size_ty * size_ty) list) : substitution_hat =
       let t1 = unify_one_hat (apply_hat t2 x) (apply_hat t2 y) in (* apply existing substitution into the current term *)
       substitution_hat_combine t1 t2
 
+(* If the set of size substitutions is empty, replace it with a substitution k=∞ *)
+let fix_empty_size_subst (s:substitution_hat) (k:size_exp)= 
+  if s.sizes = [(Inf, Inf)] then {s with sizes=[(k, Inf)]} else s
+
 (******************************* PRODUCERS *******************************)
 
 (* Pseudocode
@@ -216,11 +220,15 @@ let rec ty_unify_producer (maybe : size_ty) (target : size_ty) : size_ty option 
   match maybe with
   | TyArrow (U _, _, cod) -> 
     (* Unquantified - no substitution required (generated recursive functions are never type-polymorphic,
-    and we can't requantify the size, so subtyping works here) *)
+    and we can't requantify the size, so subtyping works here) 
+    NOTE: this isn't a safe assumption when we use ty_produces for the polymoprhic std_lib functions & constructors *)
     if is_size_subtype_ty cod target then Some maybe else None
   | TyArrow (Q q, doms, cod) -> (* Quantified *)
     (try
+      (* Debug.run (fun () -> Printf.eprintf "ty_unify_producer: unifying %s %s\n" (show_size_ty cod) (show_size_ty target)); *)
       let s = unify_one_hat cod target in
+      (* Debug.run (fun () -> Printf.eprintf "got: %s\n" (show_substitution_hat s)); *)
+      let s = fix_empty_size_subst s q in
       let doms_st = List.map (fun dom -> apply_hat s dom) doms in  (* apply substitution *)
         let cod_st =  apply_hat s cod in
         Some (TyArrow(Q q, doms_st, cod_st))
