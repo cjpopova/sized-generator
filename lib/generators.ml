@@ -320,7 +320,7 @@ let main (lib : library) : generators_t =
     data_cons in
   [
     var_steps                       ( w_const 2.        );
-    funrec_steps                    ( w_fuel_base 3. 1. );
+    funrec_steps                    ( w_fuel_base 2. 1. );
     fresh_call_ref_step             ( w_fuel_base 1. 0. );
     indir_call_ref_step             ( w_fuel      3.    );
     indir_call_recur_step           ( w_fuel      3.   );
@@ -330,5 +330,5 @@ let main (lib : library) : generators_t =
     base_std_lib_steps base_std_lib ( w_const 1.        );
     recur_constructor_steps recur_data_cons     ( w_fuel_base 2. 0. );
     base_constructor_steps base_data_cons ( w_const 1.  );
-    case_steps data_cons            ( w_fuel_base 3. 0. );
+    case_steps data_cons            ( w_fuel_base 1. 0. );
   ]

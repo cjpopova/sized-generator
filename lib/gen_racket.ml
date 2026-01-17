@@ -119,8 +119,9 @@ let mutual_recursive_funcs (es : exp list) : string =
     es)
   ^ ")\n" ^ first_func_name es ^ ")\n"
 
-let rkt_complete_string (fs : exp list Seq.t) (input : string): string =
-  header ^ "\n\n" 
+let rkt_complete_string (test_type : int) (fs : exp list Seq.t) (input : string): string =
+  (if test_type=1 then "#lang racket\n" else "")
+  ^ header ^ "\n\n" 
   ^ "(define code-list (list\n" ^ 
   Seq.fold_left (fun acc es -> acc ^ mutual_recursive_funcs es) "" fs
   ^ "))\n"
