@@ -19,7 +19,9 @@ let example_hole = {
   fuel=10;
   env=[];
   depth=0;
-  ty=(TyArrow(Q (SVar "k"), [tList (SVar "k") (tNat Inf)], tList (SVar "k") (tNat Inf)))}
+  ty=(TyArrow(Q (SVar "k"), [tList (SVar "k") (tNat Inf)], tList (SVar "k") (tNat Inf)));
+  match_head_count=[];
+  }
 
 (**********************************************************)
 

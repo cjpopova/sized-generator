@@ -19,7 +19,7 @@ let funrec_step (f : var option) (generate : generate_t) (hole : hole_info)=
       then {(Option.get f) with var_ty=new_ty}
       else Exp.new_var new_ty ~prefix:"f" in
      let xs = List.map (fun t -> Exp.new_var t) ty_params in
-     let body_hole = { hole with ty=ty'; env=f::xs@hole.env } in
+     let body_hole = { hole with ty=ty'; env=f::xs@hole.env; match_head_count=0::List.init (List.length xs) (fun _ -> 0) @ hole.match_head_count } in
      Exp.Letrec (f, xs, generate body_hole)
   | _ -> fun () ->
          raise (Util.Impossible "letrec constructor on non-function type")
@@ -62,7 +62,7 @@ let let_step (generate : generate_t) (hole : hole_info) (tau1 : Exp.size_ty)  =
   Debug.run (fun () -> Printf.eprintf ("creating let with %s : %s\n") (x.var_name) (show_size_ty x.var_ty));
   let val_hole = { hole with ty=tau1; env=hole.env} in
   let let_env = {x with var_ty=tau1}::hole.env in (*  extend environment in the body *)
-  let body_hole = { hole with ty=hole.ty; env=let_env } in
+  let body_hole = { hole with ty=hole.ty; env=let_env; match_head_count=0::hole.match_head_count } in
   Exp.Let (x, generate val_hole, generate body_hole)
   
 (***************************************************************)
@@ -97,18 +97,26 @@ let base_constructor_step (_ : generate_t) (hole : hole_info) (name , _ : string
 
 (***************************************************************)
 
-let case_step (generate : generate_t) (hole : hole_info) 
+let match_step (generate : generate_t) (hole : hole_info) 
               (var, constructors : var * func_list) =
   fun () ->
     Debug.run (fun () -> Printf.eprintf ("creating case with %s\n") (show_var var));
+    let rec make_new_match_head_count env head_count = (* helper function to update the head_count of var *)
+      match env, head_count with
+      | v::_, h::head_r when v==var -> h+1::head_r
+      | _::env_r, h::head_r -> h::make_new_match_head_count env_r head_r
+      | _ -> []
+    in
+    let new_match_head_count = make_new_match_head_count hole.env hole.match_head_count in
+    let smaller_sexp = TypeUtil.maybe_remove_hat (TypeUtil.size_exp_of_ty var.var_ty) in
     let new_binders : var list list = 
       List.map (fun (name, constructor_ty) ->
-      match TypeUtil.ty_unify_producer constructor_ty var.var_ty with (* turn constructor into a function to check reachable *)
-      | Some TyArrow(_, subst_ty_params, _) -> List.map (fun dom_ty -> Exp.new_var dom_ty) subst_ty_params
-      | _ -> raise (Util.Impossible (Format.sprintf "case_step: unification issue with %s" name)))
+        match constructor_ty with
+        | TyArrow(Q i, ty_params, _) ->  List.map (fun dom_ty -> Exp.new_var (TypeUtil.subst_size_of_ty dom_ty i smaller_sexp)) ty_params
+        | _ -> raise (Util.Impossible (Format.sprintf "case_step: unexpected constructor for %s" name)))
       constructors in 
     let clause_bodies =   
       List.map 
-      (fun plst -> generate { hole with env=plst@hole.env})
+      (fun plst -> generate { hole with env=plst@hole.env; match_head_count=List.init (List.length plst) (fun _ -> 0) @ new_match_head_count})
       new_binders in
     Exp.Case(Var var, var.var_ty, List.combine new_binders clause_bodies) 

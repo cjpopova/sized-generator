@@ -278,28 +278,30 @@ let base_constructor_steps (base_data_cons : data_constructors_t)
 cₖ : θₖ → d
 Γ, y : θₖ ⊢ □ₖ : T  ↝ eₖ
 1 ≤ k ≤ n
-------------------------------------------------------- (CASE)
+------------------------------------------------------- (MATCH)
 Γ, x : (d^α τ) ⊢ □ : T ↝ 
 (match e with 
   | c₁ y ... -> e₁ 
    ... 
   | cₙ y ... -> eₙ)
 
-NOTE: for now, we allow only variables with a size-hat to be at the head of `case`
-We really shouldn't do that to allow for further subsizing
+The "head" (scrutinee) of the match must be a variable. 
+match_head_count prevents us from using the same variable more than once (in one branch - it does not check across branches of the AST)
 *)
-let case_steps (data_cons : data_constructors_t)
+let match_steps (data_cons : data_constructors_t)
                    weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
    (*Debug.run (fun () -> Printf.eprintf "considering case\n"); *)
   let var_constructors : (var * func_list) list = 
-    (List.filter_map 
-      (fun var -> 
+    List.filter_map Fun.id 
+    (List.map2 
+      (fun var count -> 
         match var.var_ty with 
-        | TyCons (_, _, SHat _) -> Some (var, TypeUtil.lookup_constructors data_cons var.var_ty)
+        | TyCons _ when count < 1 -> Some (var, TypeUtil.lookup_constructors data_cons var.var_ty)
         | _ -> None)
-      hole.env) in
+      hole.env
+      hole.match_head_count) in
   steps_generator hole acc
-                Rules.case_step weight generate var_constructors
+                Rules.match_step weight generate var_constructors
 
 
 (********************************************************)
@@ -330,5 +332,5 @@ let main (lib : library) : generators_t =
     base_std_lib_steps base_std_lib ( w_const 1.        );
     recur_constructor_steps recur_data_cons     ( w_fuel_base 2. 0. );
     base_constructor_steps base_data_cons ( w_const 1.  );
-    case_steps data_cons            ( w_fuel_base 1. 0. );
+    match_steps data_cons            ( w_fuel_base 1. 0. );
   ]

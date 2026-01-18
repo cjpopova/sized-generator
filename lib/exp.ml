@@ -76,7 +76,8 @@ type hole_info = {
     fuel : int;
     env : env;
     depth : int;
-    ty : size_ty
+    ty : size_ty;
+    match_head_count : int list
 }
 [@@deriving show]
 

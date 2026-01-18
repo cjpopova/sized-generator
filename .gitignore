@@ -2,6 +2,7 @@ _build/
 _build/
 log/
 output/
-
+tmp*
+a.out
 *.o
 *.bak

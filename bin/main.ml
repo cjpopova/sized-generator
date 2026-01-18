@@ -15,7 +15,7 @@ let speclist =
   ("-size", Arg.Set_int fuel, "Size of each function");
   ("-seed", Arg.Set_int seed, "Random generator seed");
   ("-lang", Arg.Set_string lang, "Language");
-  ("-test-type", Arg.Set_int test_type, "Random generator seed");
+  ("-test-type", Arg.Set_int test_type, "Test type");
   ("-debug", Arg.Set Debug.debug_mode, "Enable debug mode");
 ]
 

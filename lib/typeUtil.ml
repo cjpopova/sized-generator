@@ -80,6 +80,8 @@ let resize_ty ty sexp =
   | TyCons(name, ty_params, _) -> TyCons(name, ty_params, sexp)
   | _ -> raise (Util.Impossible (Format.sprintf "resize_ty: called on: %s" (show_size_ty ty)))
 
+let maybe_remove_hat sexp = match sexp with | SHat k -> k | _ -> sexp
+
 
 (*********************** TYPE COMPARISON ******************************)
 

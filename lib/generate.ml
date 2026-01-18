@@ -37,13 +37,15 @@ let generate_fp (steps : generators_t) (size : int) (tys : size_ty list) : exp l
         fuel=size+1;
         env=[{m2 with var_ty = (TypeUtil.unquantify_ty m2.var_ty)}];
         depth=0;
-        ty=ty1
+        ty=ty1;
+        match_head_count=[0];
       } in
       let hole2 : hole_info = {
         fuel=size+1;
         env=[{m1 with var_ty = (TypeUtil.unquantify_ty m1.var_ty)}];
         depth=0;
-        ty=ty2
+        ty=ty2;
+        match_head_count=[0];
       } in
     [
       Rules.funrec_step (Some m1) generate_exp_wrapper hole1 () (* force letrec as first rule *) ;
