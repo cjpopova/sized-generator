@@ -53,7 +53,7 @@ hole : Nat i
 var : Nat i^
 *)
 let rec safe_subst_size_exp e1 e2 e3 : size_exp option = 
-  if e1=e2 then Some e3 
+  if e1=e2 || not !Debug.check_sizes then Some e3 
   else match e1 with
   | SVar _ -> None
   | Inf -> Some e1
@@ -112,7 +112,10 @@ let rec gen_compare_ty maybe target (size_comp : size_exp -> size_exp -> bool) =
 let is_flat_subtype_ty maybe target = (* compare size_tys without size expression comparison *)
   gen_compare_ty maybe target (fun _ _ -> true)
 let is_size_subtype_ty maybe target = (* use size subtyping *)
-  gen_compare_ty maybe target (fun sexp1 sexp2 -> sexp1 $<= sexp2)
+  gen_compare_ty maybe target 
+    (if !Debug.check_sizes 
+    then (fun sexp1 sexp2 -> sexp1 $<= sexp2)
+    else (fun _ _ -> true))
 
 (******************* TYPE UNIFICATION ****************************)
 (* Algorithm based on https://www.cs.cornell.edu/courses/cs3110/2011sp/Lectures/lec26-type-inference/type-inference.htm *)
@@ -128,6 +131,7 @@ type substitution_hat = {
 }
 [@@deriving show]
 let rec sexp_unifier sexp target : size_exp * size_exp = 
+  if not !Debug.check_sizes then (Inf, Inf) else
     match (sexp, target) with
     | Inf, Inf -> Inf, Inf
     | SHat i, Inf -> sexp_unifier i Inf

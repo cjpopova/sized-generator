@@ -1,7 +1,7 @@
 Implement LET_BASE
-- replace Exp.NLetrec with Exp.Let which handles both base and function type let-bindings
-- see size_subst problem
-- will have to squash commits becuase i want to commit the simplest possible working version first
+- [x] replace Exp.NLetrec with Exp.Let which handles both base and function type let-bindings
+- [ ] see size_subst problem
+- [ ] will have to squash commits becuase i want to commit the simplest possible working version first
 
 
 # next steps (big picture)

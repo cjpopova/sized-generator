@@ -53,6 +53,8 @@ let var_steps weight (generate : hole_info -> exp) (hole : hole_info) (acc : rul
 □ : θ[i := ihat] ↝ e
 -------------------------------------- (REC)
 Γ ⊢ □ : ∀i.(d^i τ) → θ ↝ funrec x.e
+
+Notice that the target will never be TyArrow(U k,_,_) because that is exclusively for recursive bindings.
 *)
 let funrec_steps weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
    (*Debug.run (fun () -> Printf.eprintf "considering letrec\n"); *)
