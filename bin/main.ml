@@ -14,7 +14,7 @@ let speclist =
   ("-size", Arg.Set_int fuel, "Size of each function");
   ("-seed", Arg.Set_int seed, "Random generator seed");
   ("-lang", Arg.Set_string lang, "Language (ml, rkt)");
-  ("-test-type", Arg.Set_int Debug.test_type, "Test type"); (* when 430, disable lang features not present in 430 subset of racket & modify printing *)
+  ("-test-type", Arg.Set_int Debug.test_type, "Test type"); (* see README *)
   ("-debug", Arg.Set Debug.debug_mode, "Enable debug mode");
 ]
 

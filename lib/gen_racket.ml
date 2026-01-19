@@ -106,12 +106,15 @@ let rkt_complete_string (fs : exp list Seq.t) (input : string): string =
     , "(cons "^first_func_name es^" "^codelst^")")
     ("","'()") fs in
 
-  (if !Debug.test_type==430 
-    then "(define (map f ll)
-            (match ll
-               ['() '()]
-               [(cons code rst) (cons (f code) (map f rst))]))\n"
-    else "#lang racket\n")
+  (match !Debug.test_type with
+    | 430 ->
+    "(define (map f ll)
+      (match ll
+          ['() '()]
+          [(cons code rst) (cons (f code) (map f rst))]))\n"
+    | 3027 -> "#lang racket/base
+    (require racket/match)\n"
+    | _ -> "#lang racket\n")
 
   ^ "(define (nat_min x y)
   (let ([z (- x y)])

@@ -283,7 +283,7 @@ let computeT (ty:size_ty) (env:env) =
     if List.exists is_func (dom1::doms) then [] (* NOTE: first order functions only - excludes anything where a domain is a function*)
     else
       let smaller_env = List.filter (fun v -> v.var_ty != ty) env in (* NOTE: set comprehension would be more efficient *)
-      if List.for_all (reachable smaller_env) doms then (* check reachability of the non-decreasing arguments*)
+      if List.for_all (reachable smaller_env) doms then (* check reachability of the non-decreasing arguments (which will be Inf, so we don't worry about sizes)*)
         List.map (subst_size_of_ty cod k) (helper dom1 env)
       else []  
     (* we're going to have a problem if the function is unquantified ... assume Q k for now*)

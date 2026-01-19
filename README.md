@@ -66,4 +66,8 @@ let code_list =
 ]
 
 in List.map (fun code -> code 1) code_list
-``
+```
+
+# Test types
+- 430: disable lang features not present in 430 subset of racket & modify printing
+- 3027: use racket/base instead of racket

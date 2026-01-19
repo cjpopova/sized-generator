@@ -206,12 +206,13 @@ let let_function weight (generate : hole_info -> exp) (hole : hole_info) (acc : 
 (* attempt #3 *)
 
 let let_base2 weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
-  (*Debug.run (fun () -> Printf.eprintf "considering nest_letrec\n"); *)
+  (* Debug.run (fun () -> Printf.eprintf "considering let_base\n"); *)
   let types : SizeTySet.t = SizeTySet.of_list (List.fold_left (fun acc v -> 
     TypeUtil.computeT v.var_ty hole.env @ acc) 
     []
     hole.env)
   in
+  (* Debug.run (fun () -> Printf.eprintf "considering let_base: %s\n" (String.concat "|" @@ List.map show_size_ty c));  *)
   steps_generator hole acc
         Rules.let_step weight generate (SizeTySet.to_list types)
 
@@ -322,9 +323,9 @@ let main (lib : library) : generators_t =
     data_cons in
   [
     var_steps                       ( w_const 2.        );
-    indir_call_ref_step             ( w_fuel      2.    );
+    indir_call_ref_step             ( w_fuel      4.    );
     indir_call_recur_step           ( w_fuel      3.    );
-    let_base2                       ( w_fuel      2.    );
+    let_base2                       ( w_fuel      4.    );
     std_lib_steps call_std_lib      ( w_fuel      4.    );
     base_std_lib_steps base_std_lib ( w_const 1.        );
     recur_constructor_steps recur_data_cons     ( w_fuel_base 2. 0. );
