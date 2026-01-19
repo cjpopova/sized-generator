@@ -1,6 +1,7 @@
 
 
 let debug_mode = ref false
+let test_type = ref 1
 
 let run f =
   if !debug_mode

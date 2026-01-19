@@ -8,14 +8,13 @@ let batch_size = ref 1
 let fuel = ref 5
 let seed = ref (-1)
 let lang = ref ("ml") (* ml or rkt *)
-let test_type = ref(1) (* when 1, print #lang racket during racket printing. otherwise, skips #lang line *)
 let speclist =
 [
   ("-n", Arg.Set_int batch_size, "Number of tests to generate");
   ("-size", Arg.Set_int fuel, "Size of each function");
   ("-seed", Arg.Set_int seed, "Random generator seed");
-  ("-lang", Arg.Set_string lang, "Language");
-  ("-test-type", Arg.Set_int test_type, "Test type");
+  ("-lang", Arg.Set_string lang, "Language (ml, rkt)");
+  ("-test-type", Arg.Set_int Debug.test_type, "Test type"); (* when 430, disable lang features not present in 430 subset of racket & modify printing *)
   ("-debug", Arg.Set Debug.debug_mode, "Enable debug mode");
 ]
 
@@ -35,7 +34,7 @@ let () =
     | _ -> raise (Util.Unimplemented "lang not supported") in
   let get_data_constructors (module L : Language) = L.data_constructors in
   let get_std_lib (module L : Language) = L.std_lib in
-  let get_printer (module L : Language) = L.printer !test_type in
+  let get_printer (module L : Language) = L.printer in
 
 
   (* GENERATION *) 

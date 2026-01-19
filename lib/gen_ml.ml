@@ -142,5 +142,5 @@ let ml_  =
     (module struct
       let data_constructors = data_constructors
       let std_lib = std_lib
-      let printer = fun _ -> ml_complete_string 
+      let printer = ml_complete_string 
 end : Language)

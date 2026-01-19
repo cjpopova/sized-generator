@@ -72,7 +72,7 @@ Generally, this rule requires you to find θ such that T = θ[k := α] (precondi
 Instead of unsubstituting, we'll just do θ = T[α := k] where α is the size expression of the variable.
 Only successful substitution are kept. This dismisses cases such as T=k, α=khat where there is not a well-formed function.
 
-NOTE: For now, we pick only 1 var at a time for unary function. Each element of var_tys is a SINGLE 
+NOTE: For now, we pick only 1 var at a time for unary function. Each element of var_tys is a SINGLE function:
 Where the production judgement has a lambda hole of this type:
   □ : ∀k.(d^k τ_2) → θ
 We pass the following type into Rules:
@@ -322,15 +322,19 @@ let main (lib : library) : generators_t =
     data_cons in
   [
     var_steps                       ( w_const 2.        );
-    funrec_steps                    ( w_fuel_base 2. 1. );
-    fresh_call_ref_step             ( w_fuel_base 1. 0. );
-    indir_call_ref_step             ( w_fuel      3.    );
-    indir_call_recur_step           ( w_fuel      3.   );
-    let_function                    ( w_fuel      3.   );
-    let_base2                       ( w_fuel      3.    );
-    std_lib_steps call_std_lib      ( w_fuel      2.    );
+    indir_call_ref_step             ( w_fuel      2.    );
+    indir_call_recur_step           ( w_fuel      3.    );
+    let_base2                       ( w_fuel      2.    );
+    std_lib_steps call_std_lib      ( w_fuel      4.    );
     base_std_lib_steps base_std_lib ( w_const 1.        );
     recur_constructor_steps recur_data_cons     ( w_fuel_base 2. 0. );
     base_constructor_steps base_data_cons ( w_const 1.  );
     match_steps data_cons            ( w_fuel_base 1. 0. );
+  ]
+  @
+  if !Debug.test_type == 430 then []
+  else [ (* The following features are not supported in 430's subset of Racket because they create recursive functions that aren't top-level definitions *)
+    funrec_steps                    ( w_fuel_base 2. 1. ); 
+    fresh_call_ref_step             ( w_fuel_base 1. 0. ); 
+    let_function                    ( w_fuel      3.   ); 
   ]

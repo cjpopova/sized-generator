@@ -45,14 +45,6 @@ let std_lib = [
 
 (*************************************************************************************************************************)
 
-let header : string =  
-(* #lang racket\n *)
-  "(let ([nat_min
-(λ x
-  (define y (apply - x))
-  (if (negative? y) 0 y))])\n
-"
-
 (******************* HELPERS *******************)
 (* string of variable names with space separators*)
 let var_lst_string (vs : var list) : string = String.concat " " (List.map (fun v -> v.var_name) vs)
@@ -83,8 +75,8 @@ let var_lst_string (vs : var list) : string = String.concat " " (List.map (fun v
       | TyCons ("int", _, _) ->
         (match clauses with
         | [(_, e1); ([nprime], e2)] -> 
-          "[0 " ^ rkt_str e1 ^ "]\n[_ (define " ^ nprime.var_name ^ " (sub1 "  ^ rkt_str e ^"))\n"
-          ^ rkt_str e2 ^ "]"
+          "[0 " ^ rkt_str e1 ^ "]\n[_ (let ([" ^ nprime.var_name ^ " (sub1 "  ^ rkt_str e ^")])\n"
+          ^ rkt_str e2 ^ ")]"
         | _ -> raise (Util.Impossible "match dispatch: Nat pattern not found"))
       | TyCons ("list", _, _) -> 
         (match clauses with
@@ -102,31 +94,35 @@ let var_lst_string (vs : var list) : string = String.concat " " (List.map (fun v
 
 (******************** top level printer for multiple mutually-recursive expressions ********************)
 
-(* define set of mutually recursive functions & expose the first one, eg
-(letrec ([m1 (λ (x) ...)]
-         [m2 (λ (x) ...)]
-         ...)
-  m1)
-*)
+let rkt_complete_string (fs : exp list Seq.t) (input : string): string =
+  let fundefs, codelst = Seq.fold_left (fun (fundefs, codelst) es -> 
+    fundefs ^ 
+    String.concat ""
+    (List.map (fun e -> 
+      match e with 
+      | Letrec (func, params, body) -> 
+        "(define (" ^ func.var_name ^ " " ^ var_lst_string params ^")\n" ^ rkt_str body ^ ")\n"
+      | _ -> raise (Util.Impossible "rkt_complete_string: bad exp given")) es)
+    , "(cons "^first_func_name es^" "^codelst^")")
+    ("","'()") fs in
 
-let mutual_recursive_funcs (es : exp list) : string =
-  "(letrec (" ^
-  String.concat "\n" (List.map (fun e -> 
-    match e with 
-    | Letrec (func, params, body) -> "[" ^ func.var_name ^ " (λ (" ^ var_lst_string params ^")\n" 
-      ^ rkt_str body ^ ")]"
-    | _ -> raise (Util.Impossible "rkt_complete_string: bad exp given"))
-    es)
-  ^ ")\n" ^ first_func_name es ^ ")\n"
+  (if !Debug.test_type==430 
+    then "(define (map f ll)
+            (match ll
+               ['() '()]
+               [(cons code rst) (cons (f code) (map f rst))]))\n"
+    else "#lang racket\n")
 
-let rkt_complete_string (test_type : int) (fs : exp list Seq.t) (input : string): string =
-  (if test_type=1 then "#lang racket\n" else "")
-  ^ header ^ "\n\n" 
-  ^ "(define code-list (list\n" ^ 
-  Seq.fold_left (fun acc es -> acc ^ mutual_recursive_funcs es) "" fs
-  ^ "))\n"
-  ^ "(map (λ (code) " ^input^ ") code-list))"
-
+  ^ "(define (nat_min x y)
+  (let ([z (- x y)])
+    (if (< z 0) 0 z)))\n\n" 
+  (* (define m0 (λ (x...) e...)) ...*)
+  ^ fundefs
+  ^ "\n(let ([code-list "
+  (* (cons m0 (cons m1 ..'()..)) *)
+  ^ codelst
+  ^ "])
+  (map (λ (code) " ^input^ ") code-list))"
 
 let racket_  =
     (module struct
