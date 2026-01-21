@@ -82,60 +82,65 @@ let make_infix f = String.sub f 1 (String.length f - 2)
         ml_str e2 ^ ")"
       | _, [] ->  ml_str func ^ "()"
       | _, _ -> "(" ^ ml_str func ^ " " ^ String.concat " " (List.map ml_str args) ^ ")")      
-    | Letrec (func, params, body) -> (*  (let rec f (params) : retTy = body in f)  *)
-      "(fun " ^ func.var_name ^ " " 
+    | Letrec (func, params, body) -> (*  (let fun f (params) : retTy = body in f end)  *)
+      "(let fun " ^ func.var_name ^ " " 
       ^ type_sig_string func params ^ " =\n"
-      ^ ml_str body ^ " in " ^ func.var_name ^")"
-    | Let (x,v,body) -> "(let rec " ^ x.var_name ^ " : " ^ show_unsized_ty x.var_ty ^ " =\n"
+      ^ ml_str body ^ " in " ^ func.var_name ^" end)"
+    | Let (x,v,body) -> "(let val " ^ x.var_name ^ " : " ^ show_unsized_ty x.var_ty ^ " =\n"
       ^ ml_str v ^ " in \n" 
-      ^ ml_str body ^")"
+      ^ ml_str body ^" end)"
     | ExtRef (name, _) -> name
-    | Case (e, ty, clauses) -> (* (match e with | D (x ...) -> e_1) ... ) *)
-      "(match " ^ ml_str e ^ " with \n" ^ 
+    | Case (e, ty, clauses) -> 
+      "(case " ^ ml_str e ^ " of \n" ^ 
       (match ty with
       | TyCons ("int", _, _) ->
         (match clauses with
         | [(_, e1); ([nprime], e2)] -> 
-          "| 0 -> " ^ ml_str e1 ^ 
-          "\n| _ -> let " ^ nprime.var_name ^ " = " ^ ml_str e ^"-1 in " ^ ml_str e2
+          "  0 => " ^ ml_str e1 ^ 
+          "\n| _ => let val " ^ nprime.var_name ^ " = " ^ ml_str e ^"-1 in " ^ ml_str e2 ^ " end"
         | _ -> raise (Util.Impossible "match dispatch: Nat pattern not found"))
       | TyCons ("list", _, _) -> 
         (match clauses with
         | [(_, e1); ([h; t], e2)] -> 
-          "| [] -> " ^ ml_str e1 ^ 
-          "\n| " ^ h.var_name ^ "::" ^ t.var_name ^ " -> " ^ ml_str e2
+          "  [] => " ^ ml_str e1 ^ 
+          "\n| " ^ h.var_name ^ "::" ^ t.var_name ^ " => " ^ ml_str e2
         | _ -> raise (Util.Impossible "match dispatch: List pattern not found"))
       | _ -> (* Normal constructor case *)
         let constructors = TypeUtil.lookup_constructors data_constructors ty in
         (String.concat "| "
           (List.map2 
-          (fun (vars, body) (cname, _) -> cname ^ "(" ^ var_lst_string vars ^ ")" ^ ml_str body ^ "\n")
+          (fun (vars, body) (cname, _) -> cname ^ "(" ^ var_lst_string vars ^ ") => " ^ ml_str body ^ "\n")
           clauses constructors)))
       ^ ")"
 
 (******************** top level printer for multiple mutually-recursive expressions ********************)
 
 (* define set of mutually recursive functions & expose the first one, eg
-(let rec m1 x = ...
+(fun m1 x = ...
   and m2 x = ...
   ...
-  in m1)
+  ;;)
 *)
 let mutual_recursive_funcs (es : exp list): string =
-  "(let rec " ^
-  String.concat " and " (List.map (fun e -> 
+  "fun " ^
+  String.concat "\nand " (List.map (fun e -> 
     match e with 
     | Letrec (func, params, body) -> func.var_name ^ type_sig_string func params ^ " =\n"
       ^ ml_str body
-    | _ -> raise (Util.Impossible "rkt_complete_string: bad exp given"))
+    | _ -> raise (Util.Impossible "mutual_recursive_funcs: bad exp given"))
     es)
-  ^ " in " ^ first_func_name es ^ ")\n"
+  ^ ";;\n"
 
 let ml_complete_string (fs : exp list Seq.t) (input : string): string = 
-  header ^ "\n\n" ^
-  "let code_list = ["
-  ^ Seq.fold_left (fun acc es -> acc ^ mutual_recursive_funcs es ^ ";") "" fs
-  ^ "]\n in List.map (fun code -> " ^input^ ") code_list"
+  let fundefs, code_list = Seq.fold_left (fun (fundefs, codelst) es -> 
+    fundefs ^ (mutual_recursive_funcs es)
+    , first_func_name es :: codelst)
+    ("",[]) fs in
+
+    header ^ "\n\n"
+    ^ fundefs ^ "\n\n"
+    ^ "val code_list = [" ^ String.concat ", " code_list ^ "];;\n"
+    ^ "map (fn code => " ^input^ ") code_list" 
 
 let sml_  =
     (module struct

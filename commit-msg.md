@@ -10,6 +10,7 @@ Implement LET_BASE
 - [ ] move input generator to gen_lang files
 - [ ] remove UNIFIER.ml file when working on HO polymorphism
 - [ ] finish analysis on the NLREC branch and merge into main
+- [ ] "normal" datatypes printing not tested; likely needs header
 
 
 # tracer/profiling notes

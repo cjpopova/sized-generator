@@ -128,7 +128,7 @@ let mutual_recursive_funcs (es : exp list): string =
     match e with 
     | Letrec (func, params, body) -> func.var_name ^ type_sig_string func params ^ " =\n"
       ^ ml_str body
-    | _ -> raise (Util.Impossible "rkt_complete_string: bad exp given"))
+    | _ -> raise (Util.Impossible "mutual_recursive_funcs: bad exp given"))
     es)
   ^ " in " ^ first_func_name es ^ ")\n"
 
