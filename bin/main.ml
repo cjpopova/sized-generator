@@ -7,7 +7,7 @@ open Library
 let batch_size = ref 1
 let fuel = ref 5
 let seed = ref (-1)
-let lang = ref ("ml") (* ml or rkt *)
+let lang = ref ("ml") (* ml, sml, or rkt *)
 let speclist =
 [
   ("-n", Arg.Set_int batch_size, "Number of tests to generate");
@@ -31,6 +31,7 @@ let () =
     match !lang with
     | "ml" -> Gen_ml.ml_ 
     | "rkt" -> Gen_racket.racket_
+    | "sml" -> Gen_sml.sml_
     | _ -> raise (Util.Unimplemented "lang not supported") in
   let get_data_constructors (module L : Language) = L.data_constructors in
   let get_std_lib (module L : Language) = L.std_lib in
@@ -50,7 +51,7 @@ let () =
   ((code 100) 42)     rkt : int -> int -> _
   code [100; 42]      ml : int list -> _
   *)
-  let input = "(code 10 42)" in
+  let input = "(code 5 9)" in
   let generate_batch fuel batch_size =
     Seq.init batch_size
               (fun _ ->
