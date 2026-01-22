@@ -25,6 +25,10 @@ let nat_func2 = (TyArrow(Q k, [tNat k; tNat Inf], tNat k)) (* ∀k. Natk → Nat
 let nat_func3 = TyArrow (Q k, [tNat k],
                               TyArrow(Q j, [tNat j], tNat Inf)) (* ∀k. Natk → (∀ j. Natj → Nat) *)
 let list_func1 = TyArrow(Q k, [tList k (tNat Inf)], tList k (tNat Inf)) (* ∀k. Listk Nat → Listk Nat*)
+let list_func2 = TyArrow(Q k, [tList k (tNat Inf)], tList Inf (tNat Inf)) (* ∀k. Listk Nat → List Nat*)
+
+let list_func3 = TyArrow(Q k, [tList k (tNat Inf)], (tNat Inf)) (* ∀k. Listk Nat → Nat*)
+
 
 
 

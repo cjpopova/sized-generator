@@ -17,31 +17,37 @@ let data_constructors : data_constructors_t = [
     ]
 
 let std_lib = [
-  "+",    [tNat i; tNat Inf] --> tNat Inf;
-  "nat_min",    [tNat i; tNat Inf] --> tNat i; (* minus*)
-  "odd",    [tNat Inf] --> tBool;
-  "even",   [tNat Inf] --> tBool;
-  "and",   [tBool; tBool] --> tBool;
-  "or",   [tBool; tBool] --> tBool;
-  "not",    [tBool] --> tBool;
-  "==",   [tX; tX] --> tBool;
-  "42",     tNat Inf; (* it is useful to have some large constants, because Succ consumes fuel*)
-  "560",    tNat Inf;
-  "1000000",tNat Inf;
-  "10 :: 50 :: []", tList Inf (tNat Inf);
-  (* "head"   ,[tList i tX] --> tX; *)
-  "tail"   ,[tList i tX] --> tX;
-  "take"   ,[tList i tX; tNat Inf] --> tList i tX;
-  "list-ref",[tList i tX; tNat Inf] --> tX;
+  "+"       , [tNat i; tNat Inf] --> tNat Inf;
+  "nat_min" , [tNat i; tNat Inf] --> tNat i; (* minus *)
+  "<"       , [tNat i; tNat Inf] --> tBool;
+  "eq?"     , [tX; tX] --> tBool;
+  "42"      , tNat Inf; (* it is useful to have some large constants, because Succ consumes fuel*)
+  "560"     , tNat Inf;
+  "1000000" , tNat Inf;
+  "(cons 10 (cons 50 '()))", tList Inf (tNat Inf);
+  "car"     , [tList i tX] --> tX;
+  "cdr"     , [tList i tX] --> tList i tX; (* error on empty list *)
+  ]
+  (* the following are not natively supported by 430 *)
+  @ if !Debug.test_type != 430 then [] else [
+  "odd"     , [tNat Inf] --> tBool;
+  "even"    , [tNat Inf] --> tBool;
+  "and"     , [tBool; tBool] --> tBool;
+  "or"      , [tBool; tBool] --> tBool;
+  "not"     , [tBool] --> tBool;
+  "length"  , [tList i tX] --> tNat i;
+  "list-tail"   ,[tList i tX] --> tX; (* may error *)
+  "take"   ,[tList i tX; tNat Inf] --> tList i tX; (* may error *)
+  "list-ref",[tList i tX; tNat Inf] --> tX; (* may error *)
   "append"  ,[tList i tX; tList Inf tX] --> tList Inf tX; (* size algebra expressivity *)
-  "concat"  ,[tList i (tList Inf tX)] --> tList Inf tX;
   (* make-list (1-fuel cost to make large constant size lists) *)
+  (* TODO: turn some of these off for 430*)
 
   (* higher order danger zone:
   map      ,[(tX --> tY), tList i tX] -->  tList i tY;
   foldr    ,N/A
   *)
-  ]
+]
 
 (*************************************************************************************************************************)
 
@@ -95,7 +101,7 @@ let var_lst_string (vs : var list) : string = String.concat " " (List.map (fun v
 (******************** top level printer for multiple mutually-recursive expressions ********************)
 
 let rkt_complete_string (fs : exp list Seq.t) (input : string): string =
-  let fundefs, codelst, analysis_res = Seq.fold_left (fun (fundefs, codelst, analysis_lst) es -> 
+  let fundefs, codelst, _ = Seq.fold_left (fun (fundefs, codelst, analysis_lst) es -> 
     fundefs ^ 
     String.concat ""
     (List.map (fun e -> 

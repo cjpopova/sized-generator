@@ -263,6 +263,10 @@ let helper (a:size_ty) (env:env) : size_exp list =
   then []
   (* functions - duplicate logic of ty_produces
   we also need to UNFOLD higher order function in the result to their base result
+
+
+
+  The following duplicate the logic of reachable w/ flat_subtyping and no unfolding ty_produces
   *)
   else
     (List.filter_map (fun v -> 
@@ -282,7 +286,7 @@ let computeT (ty:size_ty) (env:env) =
   *)
   match ty with
   | TyArrow(_, [], cod) -> [cod] (* If the function has no arguments (highly unlikely) then no checks are necessary and its codomain is unsized *)
-  (* todo U k case of TyArrow*)
+  | TyArrow(U _, _, _) -> [] (* TODO: fill in this case*)
   | TyArrow(Q k, dom1 :: doms, cod) ->
     if List.exists is_func (dom1::doms) then [] (* NOTE: first order functions only - excludes anything where a domain is a function*)
     else

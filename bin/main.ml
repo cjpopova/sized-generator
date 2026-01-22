@@ -45,13 +45,13 @@ let () =
     Generate.generate_fp 
       steps
       fuel (* target type: *)
-      [ nat_func1; nat_func1 ]
+      [ list_func2; list_func2 ]
   in
   (* Assume `code` is the name of the function to call. Format the function call & inputs appropriately. Examples:
   ((code 100) 42)     rkt : int -> int -> _
   code [100; 42]      ml : int list -> _
   *)
-  let input = "(code 5 9)" in
+  let input = "(code '(5 9))" in
   let generate_batch fuel batch_size =
     Seq.init batch_size
               (fun _ ->

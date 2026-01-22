@@ -134,11 +134,11 @@ let indir_call_recur_step weight (generate : hole_info -> exp) (hole : hole_info
   indir_call weight generate hole acc (* non-quantified functions are recursive *)
     (fun v -> match v.var_ty with | TyArrow(U _, _, _) -> true | _ -> false)
 
-(*
+(* These are two variants of LET, LET_FUNC and LET_BASE
 θ[k := α] = T
 Γ                       ⊢ □₁ : ∀k.(d^k τ_1) → θ ↝ e₁
 Γ, f : ∀k.(d^k τ_1) → θ ⊢ □₂ : T                ↝ e₂
-------------------------------------------------------- (NEST_LETREC)
+------------------------------------------------------- (LET_FUNC)
 Γ, x : (d^α τ_1) ⊢ □ : T ↝ (letrec f = e₁ in e₂)
 
 This rule introduces a recursive function without immediately producing it in □₂, allowing it to be used arbitrarily.
@@ -146,19 +146,6 @@ The type of □₁ is a function from (some sized type available in the environm
 I am not bothering with subtyping here.
 This is similar to appref in its size subsitution, so I'll have to copy that rule.
 NOTE: unary assumption
-This won't increase the number of recursive calls within the body, but it might increase (or decrease) 
-the number of times a recursive call is started because we don't control e_2. You could increase the number
-of times by increasing the weight of indir_call_ref_step.
-
-
-TODO 2026-01-09: how do we extend to base-types, eg s.t. 
-let x : base-type = e1 in e2
-How do we choose base-type intelligently?
-- something accepted by the domain of a function in the environment (eg can be consumed)
-
-Actually, this could pick a type we can't produce (for example if we're generating foo, and we pick foo's domain when we don't have access to something SMALL enough)
-  ... the type we pick should also be REACHABLE.
-
 *)
 let let_function weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
   match hole.ty with
@@ -182,39 +169,53 @@ let let_function weight (generate : hole_info -> exp) (hole : hole_info) (acc : 
         Rules.let_step weight generate types
   | _ -> acc
 
-(* attempt #2*)
-(* let let_base2 weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
-  (*Debug.run (fun () -> Printf.eprintf "considering nest_letrec\n"); *)
+(*
+Γ                       ⊢ □₁ : ???? ↝ e₁
+Γ, x : τ                ⊢ □₂ : σ                ↝ e₂
+------------------------------------------------------- (LET_BASE)
+Γ ⊢ □ : σ ↝ (let x = e₁ in e₂)  
 
-  (* list of all reachable types in the environment *)
-  (* NOTE: higher-order functions are excluded here *)
-  let rec get_reachable (t : size_ty) : size_ty list = 
-  match t with
-    | TyCons _ -> [TypeUtil.resize_ty t Inf]
-    | TyArrow (U _, _, cod) -> if is_func cod 
-      then                               get_reachable(cod)  
-      else TypeUtil.resize_ty cod Inf :: get_reachable(cod) 
-      
-    | TyArrow (Q _, _, cod) -> if is_func cod 
-      then                               get_reachable(cod)(* ok now what do we do with the sizes?? see notebook - for now subst with Inf*)  
-      else TypeUtil.resize_ty cod Inf :: get_reachable(cod) 
-      
-    | _ -> []
-  in
-  let types = List.map (fun v -> get_reachable v.var_ty) hole.env in
-  steps_generator hole acc
-        Rules.let_step weight generate (List.flatten types) *)
+The following explanation is adapted from meeting-notes/2026-01-13
+How do we pick τ for x? We will make a potential function application to fill this hole by scanning the functions in the environment, libraries, constructors which have available arguments, 
+and manipulate the function's codomain into τ
+(Why not scan any variables of base type? Because we aren't interesting in producing bindings of the form (let x=y in e2) or (let x=42 in e2)).
 
-(* attempt #3 *)
+Let's say you have a function in the env : ∀ k . α → θ. (I present this as a unary function but it scales to multary because additional args won't have sizes).
+Recall we have no restrictions on what τ will be, but we can't use θ directly: its size expression depends on k, which isn't bound outside the function.
+So we will have do some substitution τ=θ[k:=s]. To find s, we must consider the arguments. We do have a restriction that for the function to be called,
+all arguments of types α must be reachable in the environment. However, we merely require that the potential argument is an _unsized_ subtype of α - don't care about size-subtyping.
 
-let let_base2 weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
+More concretely, suppose we wanted to allow an application like (add (plus_two y) _), where `add : ∀k. Nat^k → Nat → Nat^k` and `plus_two : ∀j. Nat^j → Nat^j^^`.
+We might create the first argument using  and some argument `y : Nat^i` where `i` is an arbitrary size expression. 
+So we've made a chain where the inner call binds `j=i`, and the outer call binds `k=j^^` from the codomain of plus_two
+Follow through the substitution to get k=i^^, so s=i^^
+
+You can scale this approach to a size algebra where multiple arguments have sizes, eg `append : List n → List m → List (m+n)`, 
+as long as the size expressions on the arguments are all size variables, not more complex expressions. Otherwise, I dont want to think about that.
+
+Returning to our goal: for each function in the environment, we have a set of ways to call it with different arguments, which each potentially produces a different size exp
+This produces a whole bunch of different Ts
+
+
+given β being another function, we need to repeat the above anaylsis until we get to a β that is NOT a function
+the good news is that this chain might have sized arguments that we need tocheck for reachability, but we won't need to do any further substitutions for `k` because we already did found whatever type in the domain had `k`
+
+
+  TODO: 
+  - [ ] introduce a max depth in reachability searching
+  - [ ] currently, nothing prevents the codomain of the chosen functions, eg the result of compute T, from being another function
+  which could be a problem for quantifiers
+  this is tough bc when would you have uncurried function??
+
+*)
+
+let let_base weight (generate : hole_info -> exp) (hole : hole_info) (acc : rule_urn) =
   (* Debug.run (fun () -> Printf.eprintf "considering let_base\n"); *)
   let types : SizeTySet.t = SizeTySet.of_list (List.fold_left (fun acc v -> 
     TypeUtil.computeT v.var_ty hole.env @ acc) 
     []
     hole.env)
   in
-  (* Debug.run (fun () -> Printf.eprintf "considering let_base: %s\n" (String.concat "|" @@ List.map show_size_ty c));  *)
   steps_generator hole acc
         Rules.let_step weight generate (SizeTySet.to_list types)
 
@@ -327,7 +328,7 @@ let main (lib : library) : generators_t =
     var_steps                       ( w_const 2.        );
     indir_call_ref_step             ( w_fuel      4.    );
     indir_call_recur_step           ( w_fuel      3.    );
-    let_base2                       ( w_fuel      4.    );
+    let_base                       ( w_fuel      4.    );
     std_lib_steps call_std_lib      ( w_fuel      4.    );
     base_std_lib_steps base_std_lib ( w_const 1.        );
     recur_constructor_steps recur_data_cons     ( w_fuel_base 2. 0. );

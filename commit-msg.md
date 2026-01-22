@@ -4,14 +4,15 @@ Implement LET_BASE
 - [ ] will have to squash commits becuase i want to commit the simplest possible working version first
 
 
-# next steps (big picture)
-- [ ] finish LET_BASE (see above)
-- [ ] implement the nonlocal alternative for mutual rec
-- [ ] move input generator to gen_lang files
-- [ ] remove UNIFIER.ml file when working on HO polymorphism
-- [ ] finish analysis on the NLREC branch and merge into main
-- [ ] "normal" datatypes printing not tested; likely needs header
+I need to rewrite the explanation/rename functions in generators.ml.
 
+Focusing in on the goal - supporting typical higher-order functions like MAP, FOLD. 
+unsure what to do about curried functions, since during application you'd have to find the first argument
+before you know what the output size. which is OK for recursive descent
+
+Anyways, let's try enabling the list functions and seeing what happens.
+- [ ] how often do errors happen because of unsafe list functions? which are most common?
+- [ ] does the testing script handle these?
 
 # tracer/profiling notes
 I don't know about racket, but ML has a profiler with function call counts. working backwards:
