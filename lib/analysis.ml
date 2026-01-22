@@ -5,7 +5,7 @@ type counters = { self_calls: int; mutual_calls: int }
 let empty_counter _ = {self_calls = 0; mutual_calls=0}
 let add_counters c1 c2 = {self_calls = c1.self_calls + c2.self_calls; mutual_calls=c1.mutual_calls + c2.mutual_calls}
 
-(* list of how many times ith function calls other mutually recursive functions (not including itself) *)
+(* list of how many times ith function statically calls other mutually recursive functions (not including itself) *)
 let analyze_num_mutual_calls (es : exp list) : counters list = 
   (* get vars of top level functions *)
   let mutuals = List.map func_var es in
@@ -28,3 +28,8 @@ let analyze_num_mutual_calls (es : exp list) : counters list =
     in
 
   List.map2 traverse_ast es mutuals
+
+let print_count_lst (cc : counters list) =
+  List.iter (fun (c : counters) -> 
+    Printf.eprintf "%d,%d\n" c.self_calls c.mutual_calls) 
+    cc

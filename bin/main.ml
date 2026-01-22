@@ -7,13 +7,13 @@ open Library
 let batch_size = ref 1
 let fuel = ref 5
 let seed = ref (-1)
-let lang = ref ("ml") (* ml, sml, or rkt *)
+let lang = ref ("ml")
 let speclist =
 [
   ("-n", Arg.Set_int batch_size, "Number of tests to generate");
   ("-size", Arg.Set_int fuel, "Size of each function");
   ("-seed", Arg.Set_int seed, "Random generator seed");
-  ("-lang", Arg.Set_string lang, "Language (ml, rkt)");
+  ("-lang", Arg.Set_string lang, "Language (ml, sml, rkt)");
   ("-test-type", Arg.Set_int Debug.test_type, "Test type"); (* see README *)
   ("-debug", Arg.Set Debug.debug_mode, "Enable debug mode");
 ]

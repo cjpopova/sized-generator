@@ -1,4 +1,4 @@
-let check_sizes = ref true
+let check_sizes = ref false
 let test_type = ref 1
 
 let debug_mode = ref false

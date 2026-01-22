@@ -95,7 +95,7 @@ let var_lst_string (vs : var list) : string = String.concat " " (List.map (fun v
 (******************** top level printer for multiple mutually-recursive expressions ********************)
 
 let rkt_complete_string (fs : exp list Seq.t) (input : string): string =
-  let fundefs, codelst = Seq.fold_left (fun (fundefs, codelst) es -> 
+  let fundefs, codelst, analysis_res = Seq.fold_left (fun (fundefs, codelst, analysis_lst) es -> 
     fundefs ^ 
     String.concat ""
     (List.map (fun e -> 
@@ -103,8 +103,11 @@ let rkt_complete_string (fs : exp list Seq.t) (input : string): string =
       | Letrec (func, params, body) -> 
         "(define (" ^ func.var_name ^ " " ^ var_lst_string params ^")\n" ^ rkt_str body ^ ")\n"
       | _ -> raise (Util.Impossible "rkt_complete_string: bad exp given")) es)
-    , "(cons "^first_func_name es^" "^codelst^")")
-    ("","'()") fs in
+    , "(cons "^first_func_name es^" "^codelst^")"
+    , Analysis.analyze_num_mutual_calls es :: analysis_lst)
+    ("","'()", []) fs in
+
+  (* List.iter Analysis.print_count_lst analysis_res; *)
 
   (match !Debug.test_type with
     | 430 ->
