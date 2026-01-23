@@ -21,7 +21,6 @@ let empty : 'a nested_urn =
   Urn {size=1; tree=None}
 
 let insert (urn0 : 'a nested_urn) w' a' =
-  if (w' = 0.) then urn0 else (* CJP: do not insert when weight is 0*)
   let Urn {size=size0; tree=tree0} = urn0 in
   match tree0 with
   | None -> Urn {size=1; tree=Some (Leaf (w', a'))}

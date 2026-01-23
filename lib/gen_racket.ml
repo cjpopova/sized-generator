@@ -26,7 +26,7 @@ let std_lib = [
   "1000000" , tNat Inf;
   "(cons 10 (cons 50 '()))", tList Inf (tNat Inf);
   "car"     , [tList i tX] --> tX;
-  "cdr"     , [tList i tX] --> tList i tX; (* error on empty list *)
+  (*  "cdr"     , [tList i tX] --> tList i tX; *) (* error on empty list *)
   ]
   (* the following are not natively supported by 430 *)
   @ if !Debug.test_type != 430 then [] else [
@@ -40,11 +40,8 @@ let std_lib = [
   "take"   ,[tList i tX; tNat Inf] --> tList i tX; (* may error *)
   "list-ref",[tList i tX; tNat Inf] --> tX; (* may error *)
   "append"  ,[tList i tX; tList Inf tX] --> tList Inf tX; (* size algebra expressivity *)
-  (* make-list (1-fuel cost to make large constant size lists) *)
-  (* TODO: turn some of these off for 430*)
-
+  "map"     ,[([tX] --> tY); tList i tX] -->  tList i tY;
   (* higher order danger zone:
-  map      ,[(tX --> tY), tList i tX] -->  tList i tY;
   foldr    ,N/A
   *)
 ]
