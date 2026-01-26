@@ -140,7 +140,7 @@ let ml_complete_string (fs : exp list Seq.t) (input : string): string =
     header ^ "\n\n"
     ^ fundefs ^ "\n\n"
     ^ "val code_list = [" ^ String.concat ", " code_list ^ "];;\n"
-    ^ "map (fn code => " ^input^ ") code_list" 
+    ^ "print(\"[\"^String.concatWith \",\" (map (fn code => Int.toString " ^input^") code_list) ^ \"]\\n\")" 
 
 let sml_  =
     (module struct
