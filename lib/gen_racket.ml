@@ -25,13 +25,13 @@ let std_lib = [
   "560"     , tNat Inf;
   "1000000" , tNat Inf;
   "(cons 10 (cons 50 '()))", tList Inf (tNat Inf);
-  "car"     , [tList i tX] --> tX;
-  (*  "cdr"     , [tList i tX] --> tList i tX; *) (* error on empty list *)
+  (* "car"     , [tList i tX] --> tX; *)  (* error on empty list *)
+  (* "cdr"     , [tList i tX] --> tList i tX; *) (* error on empty list *)
   ]
   (* the following are not natively supported by 430 *)
-  @ if !Debug.test_type != 430 then [] else [
-  "odd"     , [tNat Inf] --> tBool;
-  "even"    , [tNat Inf] --> tBool;
+  @ if !Debug.test_type == 430 then [] else [
+  "odd?"     , [tNat Inf] --> tBool;
+  "even?"    , [tNat Inf] --> tBool;
   "and"     , [tBool; tBool] --> tBool;
   "or"      , [tBool; tBool] --> tBool;
   "not"     , [tBool] --> tBool;
@@ -39,11 +39,9 @@ let std_lib = [
   "list-tail"   ,[tList i tX] --> tX; (* may error *)
   "take"   ,[tList i tX; tNat Inf] --> tList i tX; (* may error *)
   "list-ref",[tList i tX; tNat Inf] --> tX; (* may error *)
-  "append"  ,[tList i tX; tList Inf tX] --> tList Inf tX; (* size algebra expressivity *)
+  "append"  ,[tList i tX; tList Inf tX] --> tList Inf tX;
   "map"     ,[([tX] --> tY); tList i tX] -->  tList i tY;
-  (* higher order danger zone:
-  foldr    ,N/A
-  *)
+  "foldl"     ,[([tX; tY] --> tY); tY; tList i tX] -->  tList i tY;
 ]
 
 (*************************************************************************************************************************)

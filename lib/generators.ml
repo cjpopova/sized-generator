@@ -328,17 +328,17 @@ let main (lib : library) : generators_t =
     var_steps                       ( w_const 2.        );
     indir_call_ref_step             ( w_fuel      4.    );
     indir_call_recur_step           ( w_fuel      3.    );
-    let_base                       ( w_fuel      4.    );
+    let_base                        ( w_fuel      4.    );
     std_lib_steps call_std_lib      ( w_fuel      4.    );
     base_std_lib_steps base_std_lib ( w_const 1.        );
     recur_constructor_steps recur_data_cons     ( w_fuel_base 2. 0. );
     base_constructor_steps base_data_cons ( w_const 1.  );
-    match_steps data_cons            ( w_fuel_base 1. 0. );
+    match_steps data_cons           ( w_fuel_base 1. 0. );
   ]
   @
   if !Debug.test_type == 430 then []
   else [ (* The following features are not supported in 430's subset of Racket because they create recursive functions that aren't top-level definitions *)
     funrec_steps                    ( w_fuel_base 2. 1. ); 
     fresh_call_ref_step             ( w_fuel_base 1. 0. ); 
-    let_function                    ( w_fuel      3.   ); 
+    let_function                    ( w_fuel      3.    ); 
   ]

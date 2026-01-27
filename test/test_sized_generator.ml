@@ -134,9 +134,13 @@ let test_unify_one_hat () =
   let input1 = tList ihat tX, tList Inf tBoolInf in (* List i^ (X ∞), List k^ (Bool ∞) ~> [X=Bool, i=k]*)
   let expected1 = { types=["X", tBoolInf]; sizes=[i, Inf]} in
 
+  let input2 = tX, tNat Inf in
+  let expected2 = { types=["X", tNat Inf]; sizes=[]} in
+
   let test_list = [
     input0, expected0;
     input1, expected1;
+    input2, expected2;
     ] in
   List.iteri (fun n ((maybe, target), e) -> Alcotest.(check subst_hat) (string_of_int n) e (unify_one_hat maybe target))
     test_list
@@ -188,12 +192,20 @@ let test_mono_producer_unification () =
   let input4 =  [tNat i; tNat Inf] --> tNat Inf, tNat Inf in (* add : ∀i. Nati -> Nat -> Nat, Nat inf ~> add *)
   let expected4 = Some ([tNat Inf; tNat Inf] --> tNat Inf) in
 
+  let input5 = [tList i tX] --> tX, tNat Inf in
+  let expected5 = Some ([tList Inf (tNat Inf)] --> (tNat Inf)) in
+
+  let input6 = [([tX] --> tY); tList i tX] --> tList i tY, tList i (tNat Inf) (* map *) in
+  let expected6 = Some ([([tX] --> (tNat Inf)); tList i tX] --> tList i (tNat Inf)) in
+
   let test_list = [
     input0, expected0;
     input1, expected1;
     input2, expected2;
     input3, expected3;
     input4, expected4;
+    input5, expected5;
+    input6, expected6;
     ] in
   List.iteri (fun n ((maybe, target),e) -> Alcotest.(check sizetyopt) (string_of_int n) e (ty_unify_producer maybe target))
     test_list
@@ -224,6 +236,26 @@ let test_mono_reachable_producer () =
     ] in
   let expected5 = Some([tNat Inf; tNat Inf] --> tNat Inf) in
 
+  let input6 = [tX] --> tX, tNat Inf, [ (* ID *)
+    tNat Inf
+  ] in
+  let expected6 = Some ([tNat Inf] --> tNat Inf) in
+
+  let input7 = [tList i tX] --> tX, tNat Inf, [ (* car *)
+    tList k (tNat Inf)
+  ] in
+  let expected7 = Some ([tList Inf (tNat Inf)] --> (tNat Inf)) in
+
+  let input8 = [tList i tX] --> tNat i, (tNat Inf), [ (* length *)
+    tList i (tNat Inf)
+  ] in
+  let expected8 = Some ([tList Inf tX] --> tNat Inf) in
+
+  let input9 = [([tX] --> tY); tList i tX] --> tList i tY, tList i (tNat Inf), [ (* map *)
+    tList i (tNat Inf)
+  ] in
+  let expected9 = Some ([([tX] --> (tNat Inf)); tList i tX] --> tList i (tNat Inf)) in
+
   let test_list = [
     input0, expected0;
     input1, expected1;
@@ -231,6 +263,10 @@ let test_mono_reachable_producer () =
     input3, expected3;
     input4, expected4;
     input5, expected5;
+    input6, expected6;
+    input7, expected7;
+    input8, expected8;
+    input9, expected9;
     ] in
   List.iteri (fun n ((maybe, target, ty_env),e) -> 
     let env = List.map (fun ty -> new_var ty) ty_env in (* turn types into vars for environment *)
