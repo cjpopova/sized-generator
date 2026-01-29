@@ -68,7 +68,7 @@ let use_base_case e : exp =
     in
   traverse_ast e
 
-let shrinker (es : exp list) = 
+let shrinker (es : exp list) : exp list Seq.t = 
   let es = remove_uncalled_mutuals es in
   let es = List.map use_base_case es in
-  es
+  Seq.return es
