@@ -1,5 +1,6 @@
 open Exp
-(* Static analysis on exps for *)
+(* open Library *)
+(* Static analysis on exps *)
 
 type counters = { self_calls: int; mutual_calls: int }
 let empty_counter _ = {self_calls = 0; mutual_calls=0}
@@ -33,3 +34,41 @@ let print_count_lst (cc : counters list) =
   List.iter (fun (c : counters) -> 
     Printf.eprintf "%d,%d\n" c.self_calls c.mutual_calls) 
     cc
+
+(* shrinker transformations
+- remove m2 if it is not called by m1
+- remove (mutual) recursive call & replace with placeholder
+- shrink constants to 0
+- remove match branches
+- replace let-bindings with constants (eg (let x=e1 in e2) become (let x=1 in e2))
+- remove unused let binding
+- replace (match e1 with |c1 -> e2 | c2 -> e3) with e2 (should have no free variables)
+*)
+
+(* remove m0 if it is not called by m1, etc *)
+let remove_uncalled_mutuals es : exp list = 
+  let counter_lst = analyze_num_mutual_calls es in
+  (* print_count_lst counter_lst; *)
+  let filtered_es = List.fold_left2 (fun called_es e { self_calls=_; mutual_calls= mut_calls } ->
+    if mut_calls == 0 then called_es else e::called_es
+  ) [] es counter_lst in
+  if List.is_empty filtered_es then [(List.hd es)] else filtered_es
+
+let use_base_case e : exp = 
+  let rec traverse_ast (e:exp) : exp = 
+    match e with 
+    | Var _ -> e
+    | App (func, args) -> App(traverse_ast func, List.map traverse_ast args)
+    | Letrec (name, params, body) -> Letrec(name, params, traverse_ast body)
+    | Let (x, v, let_body) -> Let (x, v, traverse_ast let_body)
+    | ExtRef _ -> e
+    | Case (_, _, clauses) -> 
+        match List.hd clauses with
+        | (_, e2) -> e2
+    in
+  traverse_ast e
+
+let shrinker (es : exp list) = 
+  let es = remove_uncalled_mutuals es in
+  let es = List.map use_base_case es in
+  es

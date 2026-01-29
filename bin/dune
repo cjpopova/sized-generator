@@ -2,3 +2,7 @@
  (public_name sized_generator)
  (name main)
  (libraries sized_generator unix))
+(executable
+ (public_name shrinker)
+ (name shrinker)
+ (libraries sized_generator unix))
