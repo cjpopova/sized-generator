@@ -36,12 +36,11 @@ let std_lib = [
   "or"      , [tBool; tBool] --> tBool;
   "not"     , [tBool] --> tBool;
   "length"  , [tList i tX] --> tNat i;
-  "list-tail"   ,[tList i tX] --> tX; (* may error *)
-  "take"   ,[tList i tX; tNat Inf] --> tList i tX; (* may error *)
+  (* "take"   ,[tList i tX; tNat Inf] --> tList i tX; *) (*may error*)
   "list-ref",[tList i tX; tNat Inf] --> tX; (* may error *)
   "append"  ,[tList i tX; tList Inf tX] --> tList Inf tX;
   "map"     ,[([tX] --> tY); tList i tX] -->  tList i tY;
-  "foldl"     ,[([tX; tY] --> tY); tY; tList i tX] -->  tList i tY;
+  (* "foldl"     ,[([tX; tY] --> tY); tY; tList i tX] -->  tList i tY; *) (* needs debugging*)
 ]
 
 (*************************************************************************************************************************)
@@ -95,8 +94,8 @@ let var_lst_string (vs : var list) : string = String.concat " " (List.map (fun v
 
 (******************** top level printer for multiple mutually-recursive expressions ********************)
 
-let rkt_complete_string (fs : exp list Seq.t) (input : string): string =
-  let fundefs, codelst, _ = Seq.fold_left (fun (fundefs, codelst, analysis_lst) es -> 
+let rkt_complete_string (fs : exp list list) (input : string): string =
+  let fundefs, codelst = List.fold_left (fun (fundefs, codelst) es -> 
     fundefs ^ 
     String.concat ""
     (List.map (fun e -> 
@@ -104,11 +103,8 @@ let rkt_complete_string (fs : exp list Seq.t) (input : string): string =
       | Letrec (func, params, body) -> 
         "(define (" ^ func.var_name ^ " " ^ var_lst_string params ^")\n" ^ rkt_str body ^ ")\n"
       | _ -> raise (Util.Impossible "rkt_complete_string: bad exp given")) es)
-    , "(cons "^first_func_name es^" "^codelst^")"
-    , Analysis.analyze_num_mutual_calls es :: analysis_lst)
-    ("","'()", []) fs in
-
-  (* List.iter Analysis.print_count_lst analysis_res; *)
+    , "(cons "^first_func_name es^" "^codelst^")")
+    ("","'()") fs in
 
   (match !Debug.test_type with
     | 430 ->

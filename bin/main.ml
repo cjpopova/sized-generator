@@ -61,5 +61,11 @@ let () =
                 Debug.run prerr_newline;
                 p) in
   let fs = generate_batch !fuel !batch_size in
+  let fs_lst = List.of_seq fs in
   
-  print_endline (get_printer langM fs input);
+  print_endline (get_printer langM fs_lst input);
+(* 
+  Printf.printf "==================\n";
+  let shrunk_lst = List.map Analysis.shrinker fs_lst in
+  
+  print_endline (get_printer langM shrunk_lst input); *)

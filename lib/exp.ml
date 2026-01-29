@@ -2,15 +2,18 @@ type size_exp = (* size algebra *)
   | Inf
   | SVar of string
   | SHat of size_exp
+[@@deriving show]
 
 type quantifier = 
   | Q of size_exp (* Quantified by SVar k: may be called with anything  *)
   | U of size_exp (* Unquantified by SVar k: may only be called with s $<= k where |_s_| = k (added to the environment of a recursive function for recursive calls)*)
+[@@deriving show]
 
 type size_ty = (* sized types*)
   | TyVar of string * size_exp (* INVARIANT: size_exp is Inf*)
   | TyCons of string * (size_ty list) * size_exp (* NOTE: parameter types are unsized/Inf *)
   | TyArrow of quantifier * size_ty list * size_ty
+[@@deriving show]
 
 (***** PRINTERS ******)
 let rec show_size_exp sexp =
@@ -18,7 +21,7 @@ let rec show_size_exp sexp =
   | Inf -> "Inf"
   | SVar v -> v
   | SHat e -> show_size_exp e ^ "^"
-let pp_size_exp fmt sexp = Format.fprintf fmt "%s" (show_size_exp sexp)
+(* let pp_size_exp fmt sexp = Format.fprintf fmt "%s" (show_size_exp sexp) *)
 
 let rec show_unsized_ty ty = 
   match ty with
@@ -40,7 +43,7 @@ let rec show_size_ty ty =
      ^
      List.fold_right (fun ty acc -> show_size_ty ty ^ " -> " ^ acc) doms "" 
      ^ show_size_ty cod
-let pp_size_ty fmt ty = Format.fprintf fmt "%s" (show_size_ty ty)
+(* let pp_size_ty fmt ty = Format.fprintf fmt "%s" (show_size_ty ty) *)
 
 (***************************************************************************************************************)
 
@@ -52,7 +55,7 @@ type exp =
   | Let of (var * exp * exp)
   | ExtRef of string * size_ty (* the size_ty isn't ever used *)
   | Case of exp * size_ty * ((var list * exp) list) (* case e \tau of { (x ... -> e_1) ... } *)
-(* [@@deriving show] *)
+[@@deriving show]
 
 and var = {
   var_name : string;
@@ -115,7 +118,7 @@ let func_var (e:exp) : var =
   | _ -> raise (Util.Impossible "func_var: bad exp")
 
 let first_func_name (es: exp list) =
-  (match (List.nth es 0) with | Letrec (func, _, _) -> func | _ -> raise (Util.Impossible "first_func_name: bad exp given")).var_name
+  (match (List.hd es) with | Letrec (func, _, _) -> func | _ -> raise (Util.Impossible "first_func_name: bad exp given")).var_name
 
 (* defining sets for size_tys requires creating an ordering function *)
 module SizeTyOrdered = struct

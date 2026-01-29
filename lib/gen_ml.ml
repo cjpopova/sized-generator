@@ -6,8 +6,13 @@ let data_constructors : data_constructors_t = [
      "false", [] --> tBool ];
     ["0", [] --> tNat ihat;
      "1+", [tNat i] --> tNat ihat]; (* Succ*)
-    ["[]", [] --> tList ihat tX;
-     "(::)", [tX; tList i tX] --> tList ihat tX]
+    
+     (* ["[]", [] --> tList ihat tX; (* polymorphic list *)
+     "(::)", [tX; tList i tX] --> tList ihat tX]; *)
+    ["[]", [] --> tList ihat (tNat Inf); (* int list  *)
+    "(::)", [(tNat Inf); tList i (tNat Inf)] --> tList ihat (tNat Inf)];
+    ["[]", [] --> tList ihat (tList Inf (tNat Inf)); (* int list list *)
+    "(::)", [(tList Inf (tNat Inf)); tList i (tList Inf (tNat Inf))] --> tList ihat (tList Inf (tNat Inf))]
     ]
 
 let std_lib = [
@@ -23,19 +28,11 @@ let std_lib = [
   "560",    tNat Inf;
   "1000000",tNat Inf;
   "10 :: 50 :: []", tList Inf (tNat Inf);
-  (* NOTE: enable following APIs with List.* notation *)
-  (* "head"   ,[tList i tX] --> tX; *)
-  (* "tail"   ,[tList i tX] --> tX;
-  "take"   ,[tList i tX; tNat Inf] --> tList i tX;
-  "list-ref",[tList i tX; tNat Inf] --> tX;
-  "append"  ,[tList i tX; tList Inf tX] --> tList Inf tX; (* size algebra expressivity *)
-  "concat"  ,[tList i (tList Inf tX)] --> tList Inf tX;
-  make-list (1-fuel cost to make large constant size lists) *)
-
-  (* higher order danger zone:
-  map      ,[(tX --> tY), tList i tX] -->  tList i tY;
-  foldr    ,N/A
-  *)
+  "List.append"  ,[tList i tX; tList Inf tX] --> tList Inf tX;
+  "List.concat"  ,[tList i (tList Inf tX)] --> tList Inf tX;
+  "List.map"     ,[([(tNat Inf)] --> tY); tList i (tNat Inf)] -->  tList i tY; (* version only polymorphic in result type *)
+  (* "List.map"     ,[([tX] --> tY); tList i tX] -->  tList i tY; *)
+  "List.foldr"   ,[([tX; tY] --> tY); tY; tList i tX] -->  tList i tY;
   ]
 
 (*************************************************************************************************************************)
@@ -132,10 +129,10 @@ let mutual_recursive_funcs (es : exp list): string =
     es)
   ^ " in " ^ first_func_name es ^ ")\n"
 
-let ml_complete_string (fs : exp list Seq.t) (input : string): string = 
+let ml_complete_string (fs : exp list list) (input : string): string = 
   header ^ "\n\n" ^
   "let code_list = ["
-  ^ Seq.fold_left (fun acc es -> acc ^ mutual_recursive_funcs es ^ ";") "" fs
+  ^ List.fold_left (fun acc es -> acc ^ mutual_recursive_funcs es ^ ";") "" fs
   ^ "]\n in List.map (fun code -> " ^input^ ") code_list"
 
 let ml_  =

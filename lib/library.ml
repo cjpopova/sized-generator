@@ -36,5 +36,5 @@ let list_func3 = TyArrow(Q k, [tList k (tNat Inf)], (tNat Inf)) (* ∀k. Listk N
 module type Language = sig
     val data_constructors : data_constructors_t 
     val std_lib : (string * size_ty) list
-    val printer : exp list Seq.t -> string -> string
+    val printer : exp list list -> string -> string
   end;;

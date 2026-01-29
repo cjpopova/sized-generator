@@ -1,8 +1,4 @@
-Implement LET_BASE
-- [x] replace Exp.NLetrec with Exp.Let which handles both base and function type let-bindings
-- [ ] see size_subst problem
-- [ ] will have to squash commits becuase i want to commit the simplest possible working version first
-
+# other improvements
 
 I need to rewrite the explanation/rename functions in generators.ml.
 
@@ -13,6 +9,12 @@ before you know what the output size. which is OK for recursive descent
 Anyways, let's try enabling the list functions and seeing what happens.
 - [ ] how often do errors happen because of unsafe list functions? which are most common?
 - [ ] does the testing script handle these?
+
+
+
+# Implement LET_BASE
+- [x] replace Exp.NLetrec with Exp.Let which handles both base and function type let-bindings
+- [ ] see size_subst problem in meeting notes
 
 # tracer/profiling notes
 I don't know about racket, but ML has a profiler with function call counts. working backwards:
@@ -70,7 +72,7 @@ however, if x is a function, then its quantifier is fresh
 
 for later
 - [ ] how to formulate types like INT inductively? rocq has something like variant = neg nat | pos nat. this wouldn't work directly in our system with TyCons because we're not allowed to put sizes inside nested data structure. i think nested inductives are allowed in CIC^ according to "Is Sized Tying for Coq practical" p. 5
-- [ ] justine's urn implementation (also rewrites interface between generator & rule)
+- [ ] justine's urn implementation (also rewrites interface between generator & rule) (but they used the old version for the artifact...)
 
 tuning
 - [ ] discourage nested letrecs in the current form inside loops because they will probably get optimized out anyway?
