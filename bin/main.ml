@@ -14,14 +14,15 @@ let speclist =
   ("-size", Arg.Set_int fuel, "Size of each function");
   ("-seed", Arg.Set_int seed, "Random generator seed");
   ("-lang", Arg.Set_string lang, "Language (ml, sml, rkt)");
-  ("-test-type", Arg.Set_int Debug.test_type, "Test type"); (* see README *)
+  ("-test-type", Arg.Set_int Debug.test_type, "Test type (see README)");
   ("-debug", Arg.Set Debug.debug_mode, "Enable debug mode");
+  ("-disable-size-check", Arg.Clear Debug.check_sizes, "Disable size type checking");
 ]
 
 (************** GENERATE *********************)
 let () =
   Arg.parse speclist (fun _ -> ())
-    "sized_generator [-n <1>] [-size <10>] [-seed <-1>] [-lang <ml>]";
+    "sized_generator [-n <1>] [-size <10>] [-seed <-1>] [-lang <ml>] [-test-type <0>]";
   (if !seed < 0
    then Random.self_init ()
    else Random.init !seed);
