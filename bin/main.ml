@@ -14,14 +14,15 @@ let speclist =
   ("-size", Arg.Set_int fuel, "Size of each function");
   ("-seed", Arg.Set_int seed, "Random generator seed");
   ("-lang", Arg.Set_string lang, "Language (ml, sml, rkt)");
-  ("-test-type", Arg.Set_int Debug.test_type, "Test type"); (* see README *)
+  ("-test-type", Arg.Set_int Debug.test_type, "Test type (see README)");
   ("-debug", Arg.Set Debug.debug_mode, "Enable debug mode");
+  ("-disable-size-check", Arg.Clear Debug.check_sizes, "Disable size type checking");
 ]
 
 (************** GENERATE *********************)
 let () =
   Arg.parse speclist (fun _ -> ())
-    "sized_generator [-n <1>] [-size <10>] [-seed <-1>] [-lang <ml>]";
+    "sized_generator [-n <1>] [-size <10>] [-seed <-1>] [-lang <ml>] [-test-type <0>]";
   (if !seed < 0
    then Random.self_init ()
    else Random.init !seed);
@@ -45,13 +46,13 @@ let () =
     Generate.generate_fp 
       steps
       fuel (* target type: *)
-      [ nat_func2; nat_func2 ]
+      [ list_func1; list_func1 ]
   in
   (* Assume `code` is the name of the function to call. Format the function call & inputs appropriately. Examples:
   ((code 100) 42)     rkt : int -> int -> _
   code [100; 42]      ml : int list -> _
   *)
-  let input = "(code 5 9)" in
+  let input = "(code '(5 9))" in
   let generate_batch fuel batch_size =
     Seq.init batch_size
               (fun _ ->
@@ -61,5 +62,11 @@ let () =
                 Debug.run prerr_newline;
                 p) in
   let fs = generate_batch !fuel !batch_size in
+  let fs_lst = List.of_seq fs in
   
-  print_endline (get_printer langM fs input);
+  print_endline (get_printer langM fs_lst input);
+(* 
+  Printf.printf "==================\n";
+  let shrunk_lst = List.map Analysis.shrinker fs_lst in
+  
+  print_endline (get_printer langM shrunk_lst input); *)

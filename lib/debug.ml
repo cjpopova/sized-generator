@@ -1,5 +1,5 @@
 let check_sizes = ref true
-let test_type = ref 1
+let test_type = ref 0
 
 let debug_mode = ref false
 

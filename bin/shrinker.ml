@@ -68,8 +68,9 @@ let () =
                 Debug.run prerr_newline;
                 p) in
   let fs = generate_batch !fuel !batch_size in
-  let es = List.hd (List.of_seq fs) in
-  let new_exps = Analysis.shrinker es in
-  print_endline (get_printer langM new_exps input);
+  (* let es = List.hd (List.of_seq fs) in *)
+  print_endline (get_printer langM (List.of_seq fs) input);
+  (* let new_exps = Analysis.shrinker es in
+  print_endline (get_printer langM new_exps input); *)
 
 

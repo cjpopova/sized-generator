@@ -190,7 +190,7 @@ and unify_hat (s : (size_ty * size_ty) list) : substitution_hat =
 
 (* If the set of size substitutions is empty, replace it with a substitution k=∞ *)
 let fix_empty_size_subst (s:substitution_hat) (k:size_exp)= 
-  if s.sizes = [(Inf, Inf)] then {s with sizes=[(k, Inf)]} else s
+  if s.sizes = [] || s.sizes = [(Inf, Inf)] then {s with sizes=[(k, Inf)]} else s
 
 (******************************* PRODUCERS *******************************)
 
@@ -226,8 +226,7 @@ let rec ty_unify_producer (maybe : size_ty) (target : size_ty) : size_ty option 
   match maybe with
   | TyArrow (U _, _, cod) -> 
     (* Unquantified - no substitution required (generated recursive functions are never type-polymorphic,
-    and we can't requantify the size, so subtyping works here) 
-    NOTE: this isn't a safe assumption when we use ty_produces for the polymoprhic std_lib functions & constructors *)
+    and we can't requantify the size, so subtyping works here) *)
     if is_size_subtype_ty cod target then Some maybe else None
   | TyArrow (Q q, doms, cod) -> (* Quantified *)
     (try
@@ -251,9 +250,11 @@ and ty_produces (maybe : size_ty) (target : size_ty) (env : env) : size_ty optio
       then t
       else None
   | _ -> None
-and reachable (env:env) (t:size_ty) = List.exists 
-  (fun {var_ty=var_ty; _} -> is_size_subtype_ty var_ty t || Option.is_some (ty_produces var_ty t env))
-  env
+and reachable (env:env) (t:size_ty) =
+  is_func t ||
+  List.exists 
+    (fun {var_ty=var_ty; _} -> is_size_subtype_ty var_ty t || Option.is_some (ty_produces var_ty t env))
+    env
 
 (********************** LET_BASE **************************************)
 

@@ -131,8 +131,8 @@ let mutual_recursive_funcs (es : exp list): string =
     es)
   ^ ";;\n"
 
-let ml_complete_string (fs : exp list Seq.t) (input : string): string = 
-  let fundefs, code_list = Seq.fold_left (fun (fundefs, codelst) es -> 
+let ml_complete_string (fs : exp list list) (input : string): string = 
+  let fundefs, code_list = List.fold_left (fun (fundefs, codelst) es -> 
     fundefs ^ (mutual_recursive_funcs es)
     , first_func_name es :: codelst)
     ("",[]) fs in
