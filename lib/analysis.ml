@@ -36,13 +36,13 @@ let print_count_lst (cc : counters list) =
     cc
 
 (* shrinker transformations
-- remove m2 if it is not called by m1
-- remove (mutual) recursive call & replace with placeholder
-- shrink constants to 0
-- remove match branches
-- replace let-bindings with constants (eg (let x=e1 in e2) become (let x=1 in e2))
-- remove unused let binding
-- replace (match e1 with |c1 -> e2 | c2 -> e3) with e2 (should have no free variables)
+- [x] remove m2 if it is not called by m1
+- [ ] remove (mutual) recursive call & replace with placeholder
+- [ ] shrink constants to 0
+- [ ] remove match branches
+- [ ] replace let-bindings with constants (eg (let x=e1 in e2) become (let x=1 in e2))
+- [ ] remove unused let binding
+- [~] replace (match e1 with |c1 -> e2 | c2 -> e3) with e2 (should have no free variables)
 *)
 
 (* remove m0 if it is not called by m1, etc *)
@@ -54,21 +54,70 @@ let remove_uncalled_mutuals es : exp list =
   ) [] es counter_lst in
   if List.is_empty filtered_es then [(List.hd es)] else filtered_es
 
-let use_base_case e : exp = 
-  let rec traverse_ast (e:exp) : exp = 
-    match e with 
-    | Var _ -> e
-    | App (func, args) -> App(traverse_ast func, List.map traverse_ast args)
-    | Letrec (name, params, body) -> Letrec(name, params, traverse_ast body)
-    | Let (x, v, let_body) -> Let (x, v, traverse_ast let_body)
-    | ExtRef _ -> e
-    | Case (_, _, clauses) -> 
-        match List.hd clauses with
-        | (_, e2) -> e2
-    in
-  traverse_ast e
 
+(* TODO: how do we handle mapping across lists of arguments or clauses??
+and recombining those into a sequence
+
+using list.map produces exp seq.t list
+whereas we want exp seq.t seq.t
+which we can accomplish by turning the underlying list into an seq first
+
+Lets say we have args=[a;b]
+then for each we have sequences <a',etc> and <b',etc>
+we want to produce <Constructor(a',b); constructor(etc,b)...; Constructor(a,b'); constructor(a,etc)...>
+*)
+(* let use_base_case e : exp Seq.t = 
+  (* replace ith element of lst with v *)
+  let replace (lst : 'a list) (i : int) (v : 'a) : 'a list = 
+    let rec helper lst j = 
+      match lst with
+      | [] -> []
+      | h :: t -> if i=j then v::t else h::(helper t (j+1))
+    in helper lst 0 in
+
+  let rec traverse_ast (e:exp) : exp Seq.t = 
+    match e with 
+    | Var _ -> List.to_seq [e]
+    | App (func, args) -> 
+      let fs : exp Seq.t = (traverse_ast func) |> Seq.map (fun f' -> App (f', args)) in
+      let args_s : exp Seq.t list = (List.map traverse_ast args) in
+      let args_combine : exp Seq.t list = List.mapi (fun i (seq: exp Seq.t) -> 
+        Seq.map (fun a -> App (func, replace args i a)) seq)
+        args_s in
+      Seq.append fs @@ Seq.concat (List.to_seq args_combine)
+    | Letrec (name, params, body) -> 
+      traverse_ast body
+      |> Seq.map (fun body' -> Letrec(name, params, body'))
+    | Let (x, v, let_body) -> 
+      traverse_ast let_body
+      |> Seq.map (fun body' -> Let (x, v, body'))
+    | ExtRef _ -> List.to_seq [e]
+    | Case (head, ty, clauses) -> 
+        (match List.hd clauses with
+        | (_, e2) -> 
+          let _ : (var list * exp) list = replace clauses 0 ([], e2) in
+
+          let shrink_clauses : exp Seq.t list = 
+            List.mapi (fun i (binders, e) ->
+              Seq.map (fun e' -> 
+                let pair = (binders, e') in
+                Case (head, ty,
+              
+              (* clauses *)
+              replace clauses i pair
+              
+              
+              ))
+               (traverse_ast e))
+            clauses in
+          Seq.concat @@ List.to_seq shrink_clauses) (* TODO: add e2*)
+    in
+  traverse_ast e *)
+
+
+  (* oh god we have to have sequences of sequences - maybe this is why we should split these steps up at a higher level
+   *)
 let shrinker (es : exp list) : exp list Seq.t = 
-  let es = remove_uncalled_mutuals es in
-  let es = List.map use_base_case es in
+  let es : exp list = remove_uncalled_mutuals es in
+  (* let es = List.map use_base_case es in *)
   Seq.return es
