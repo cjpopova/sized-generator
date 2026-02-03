@@ -1,19 +1,21 @@
+open Sexplib.Std
+
 type size_exp = (* size algebra *)
   | Inf
   | SVar of string
   | SHat of size_exp
-[@@deriving show, yojson]
+[@@deriving show, sexp_of, of_sexp]
 
 type quantifier = 
   | Q of size_exp (* Quantified by SVar k: may be called with anything  *)
   | U of size_exp (* Unquantified by SVar k: may only be called with s $<= k where |_s_| = k (added to the environment of a recursive function for recursive calls)*)
-[@@deriving show, yojson]
+[@@deriving show, sexp_of, of_sexp]
 
 type size_ty = (* sized types*)
   | TyVar of string * size_exp (* INVARIANT: size_exp is Inf*)
   | TyCons of string * (size_ty list) * size_exp (* NOTE: parameter types are unsized/Inf *)
   | TyArrow of quantifier * size_ty list * size_ty
-[@@deriving show, yojson]
+[@@deriving show, sexp_of, of_sexp]
 
 (***** PRINTERS ******)
 let rec show_size_exp sexp =
@@ -55,13 +57,13 @@ type exp =
   | Let of (var * exp * exp)
   | ExtRef of string * size_ty (* the size_ty isn't ever used *)
   | Case of exp * size_ty * ((var list * exp) list) (* case e \tau of { (x ... -> e_1) ... } *)
-[@@deriving yojson]
+[@@derivin]
 
 and var = {
   var_name : string;
   var_ty : size_ty;
 }
-[@@deriving show, yojson]
+[@@deriving show]
 and env = var list
 [@@deriving show]
 

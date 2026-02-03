@@ -8,6 +8,10 @@ let batch_size = ref 1
 let fuel = ref 5
 let seed = ref (-1)
 let lang = ref ("ml")
+
+let type_str = ref (Sexplib.Sexp.to_string (sexp_of_size_ty Library.nat_func1))
+let input = ref ("(code 5 9)")
+
 let speclist =
 [
   ("-n", Arg.Set_int batch_size, "Number of tests to generate");
@@ -15,6 +19,8 @@ let speclist =
   ("-seed", Arg.Set_int seed, "Random generator seed");
   ("-lang", Arg.Set_string lang, "Language (ml, sml, rkt)");
   ("-test-type", Arg.Set_int Debug.test_type, "Test type (see README)");
+  ("-type", Arg.Set_string type_str, "Type to generate");
+  ("-input", Arg.Set_string input, "Call to code with inputs");
   ("-debug", Arg.Set Debug.debug_mode, "Enable debug mode");
   ("-disable-size-check", Arg.Clear Debug.check_sizes, "Disable size type checking");
 ]
@@ -22,10 +28,12 @@ let speclist =
 (************** GENERATE *********************)
 let () =
   Arg.parse speclist (fun _ -> ())
-    "sized_generator [-n <1>] [-size <10>] [-seed <-1>] [-lang <ml>] [-test-type <0>]";
+    "sized_generator [-n <1>] [-size <10>] [-seed <-1>] [-lang <ml>] [-test-type <0>] [-type <...>] [-input \"(code 5 9)\"]";
   (if !seed < 0
    then Random.self_init ()
    else Random.init !seed);
+
+   let target_ty = size_ty_of_sexp (Sexplib.Sexp.of_string !type_str) in
 
    (* Language setup*)
   let langM = 
@@ -45,14 +53,9 @@ let () =
   let generate_stlc (fuel : int) : exp list = 
     Generate.generate_fp 
       steps
-      fuel (* target type: *)
-      [ list_func1; list_func1 ]
+      fuel 
+      [ target_ty; target_ty ]
   in
-  (* Assume `code` is the name of the function to call. Format the function call & inputs appropriately. Examples:
-  ((code 100) 42)     rkt : int -> int -> _
-  code [100; 42]      ml : int list -> _
-  *)
-  let input = "(code '(5 9))" in
   let generate_batch fuel batch_size =
     Seq.init batch_size
               (fun _ ->
@@ -64,7 +67,7 @@ let () =
   let fs = generate_batch !fuel !batch_size in
   let fs_lst = List.of_seq fs in
   
-  print_endline (get_printer langM fs_lst input);
+  print_endline (get_printer langM fs_lst !input);
 (* 
   Printf.printf "==================\n";
   let shrunk_lst = List.map Analysis.shrinker fs_lst in

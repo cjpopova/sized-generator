@@ -21,12 +21,6 @@ let () =
 
     
 
-  (* let file = "example.txt" in
-  let ic = open_in file in
-  let line = input_line ic in
-  let init_exp = exp_of_yojson (Yojson.Safe.from_string line) in
-  close_in ic; *)
-
   (* TODO: if a shrinker choice fails, how do we backtrack & make a different choice?? *)
   (* let rec shrink(curr_exps) = 
     let new_exps = shrinker curr_exps in () *)

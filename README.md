@@ -1,7 +1,7 @@
 # Sized types for program generation
 A sized-typed program generator framework written in OCaml focused on generating recursive, terminating programs.
 
-Languages targeted: Racket, ML
+Languages targeted: Racket, ML SML
 
 # Build instructions
 Required:
@@ -34,41 +34,28 @@ open DebugLibrary;;
 generate_exp_wrapper example hole;;
 ```
 
-# Examples
-Here is a minimal human readable example of what you might get from `dune exec -- sized_generator -n=1 -lang=rkt` if it generated the even/odd mutually recursive functions:
+# Command line options
 
+## Lang, type, and input
+These 3 arguments are connected: type is the σ target type to generate; input is how to call a function of that type in that language.
+
+Input: a string of code that calls a function `code` with your arguments in the syntax for the selected language. for example, 
 ```
-#lang racket
-
-(define nat_min
-  (λ x
-    (define y (apply - x))
-    (if (negative? y) 0 y)))
-
-(define code-list
-  (list
-   (letrec ([even (λ (x) (match x [0 #t] [_ (define x2 (sub1 x)) (odd x2)]))]
-            [odd (λ (x) (match x [0 #f] [_ (define x2 (sub1 x)) (even x2)]))]) even)))
-
-(map (λ (code) (code 1)) code-list)
+(code 5 7)          sml or ml: int -> int -> _
+((code 100) 42)     rkt : int -> int -> _
+code [100; 42]      ml : int list -> _
 ```
 
-Same thing for ML:
+
+Type: a sexp string of a sized type. This is the best way to get a string for a given type:
 ```
-[@@@ocaml.warning "-26-27-39"] (* supress unused variable, unused rec flag warnings ~ equivalent to ocamlc <thisfile> -w -26-17-39 *)
-let nat_min (x : int) (y : int): int = if y >= x then 0 else (x-y);; (* defn of minus for naturals *)
-
-let code_list = 
-[
-  (let rec even x = (match x with | 0 -> true | _ -> let xp = x-1 in odd xp)
-  and odd x = (match x with | 0 -> false | _ -> let xp = x-1 in even xp)
-  in even);
-]
-
-in List.map (fun code -> code 1) code_list
+#require "ppx_sexp_conv";;
+open Exp;;
+<build a size_ty, eg Library.nat_func1 >
+Sexplib.Sexp.to_string (sexp_of_size_ty Library.nat_func1);;
 ```
 
-# Test types
-- 430: disable lang features not present in 430 subset of racket & modify printing
-- 3027: use racket/base instead of racket; import racket/match
-- 0 or any other integer: default
+## Test types
+- 430: disable production rules not supported by 430's subset of racket & modify racket printing to support etna testing
+- 3027: modify racket printing to use racket/base instead of racket; import racket/match
+- 0 or any other integer: default production rules & printing
