@@ -3,15 +3,15 @@ A sized-typed program generator framework written in OCaml focused on generating
 
 Languages targeted: Racket, ML SML
 
-# Build instructions
-Required:
+# Install
+Opam
 ```
-ocaml
-dune
-utop (opam install utop)
+opam init
+opam install dune alcotest ppx_deriving sexplib ppx_sexp_conv
 ```
+The minimum OCaml version is 5.1
 
-
+# Build/run
 to build:
 ```
 dune build

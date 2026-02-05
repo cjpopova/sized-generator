@@ -43,6 +43,12 @@ let print_count_lst (cc : counters list) =
 - [ ] replace let-bindings with constants (eg (let x=e1 in e2) become (let x=1 in e2))
 - [ ] remove unused let binding
 - [~] replace (match e1 with |c1 -> e2 | c2 -> e3) with e2 (should have no free variables)
+
+ideas:
+- look at the timp (typed imp) file in software foundations
+- make everything lists (including the current problem)
+- make the structural changes (don't be clever) - make large changes and prune the options that don't typecheck
+- try writing the type in quickchick and used the derived version
 *)
 
 (* remove m0 if it is not called by m1, etc *)
@@ -66,25 +72,25 @@ Lets say we have args=[a;b]
 then for each we have sequences <a',etc> and <b',etc>
 we want to produce <Constructor(a',b); constructor(etc,b)...; Constructor(a,b'); constructor(a,etc)...>
 *)
-(* let use_base_case e : exp Seq.t = 
   (* replace ith element of lst with v *)
-  let replace (lst : 'a list) (i : int) (v : 'a) : 'a list = 
-    let rec helper lst j = 
-      match lst with
-      | [] -> []
-      | h :: t -> if i=j then v::t else h::(helper t (j+1))
-    in helper lst 0 in
+let replace (lst : 'a list) (i : int) (v : 'a) : 'a list = 
+  let rec helper lst j = 
+    match lst with
+    | [] -> []
+    | h :: t -> if i=j then v::t else h::(helper t (j+1))
+  in helper lst 0 
 
+let use_base_case e : exp Seq.t = 
   let rec traverse_ast (e:exp) : exp Seq.t = 
     match e with 
     | Var _ -> List.to_seq [e]
     | App (func, args) -> 
       let fs : exp Seq.t = (traverse_ast func) |> Seq.map (fun f' -> App (f', args)) in
-      let args_s : exp Seq.t list = (List.map traverse_ast args) in
-      let args_combine : exp Seq.t list = List.mapi (fun i (seq: exp Seq.t) -> 
+      (* let args_s : exp Seq.t list = (List.map traverse_ast args) in *)
+      let args_combine : exp Seq.t Seq.t = Seq.mapi (fun i (seq: exp Seq.t) -> 
         Seq.map (fun a -> App (func, replace args i a)) seq)
-        args_s in
-      Seq.append fs @@ Seq.concat (List.to_seq args_combine)
+        (Seq.map traverse_ast (List.to_seq args)) in
+      Seq.append fs @@ Seq.concat args_combine
     | Letrec (name, params, body) -> 
       traverse_ast body
       |> Seq.map (fun body' -> Letrec(name, params, body'))
@@ -95,29 +101,21 @@ we want to produce <Constructor(a',b); constructor(etc,b)...; Constructor(a,b');
     | Case (head, ty, clauses) -> 
         (match List.hd clauses with
         | (_, e2) -> 
-          let _ : (var list * exp) list = replace clauses 0 ([], e2) in
-
-          let shrink_clauses : exp Seq.t list = 
-            List.mapi (fun i (binders, e) ->
-              Seq.map (fun e' -> 
-                let pair = (binders, e') in
-                Case (head, ty,
-              
-              (* clauses *)
-              replace clauses i pair
-              
-              
-              ))
+          let shrink_clauses : exp Seq.t = 
+            Seq.concat (
+            Seq.mapi (fun i (binders, e) ->
+              Seq.map (fun e':exp -> 
+                Case (head, ty, replace clauses i (binders, e')))
                (traverse_ast e))
-            clauses in
-          Seq.concat @@ List.to_seq shrink_clauses) (* TODO: add e2*)
+            (List.to_seq clauses)) in
+          Seq.cons e2 shrink_clauses)
     in
-  traverse_ast e *)
+  traverse_ast e
 
-
-  (* oh god we have to have sequences of sequences - maybe this is why we should split these steps up at a higher level
-   *)
-let shrinker (es : exp list) : exp list Seq.t = 
-  let es : exp list = remove_uncalled_mutuals es in
-  (* let es = List.map use_base_case es in *)
-  Seq.return es
+(*  Run a local shrinker step that consumes on expression on a list of expressions to produce all the possible shrinks from the expression list *)
+let local_shrinker_wrapper (step: exp -> exp Seq.t) (es : exp list) : exp list Seq.t = 
+  Seq.concat
+  (Seq.mapi (fun i e -> 
+    Seq.map (fun e' -> replace es i e') 
+    (step e)) 
+    (List.to_seq es))

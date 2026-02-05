@@ -1,5 +1,12 @@
 open Exp
-open Library
+open Analysis
+(*
+
+variant
+-1 -> not shrunk
+0 -> remove_uncalled_mutuals done
+1+ -> that many local shrinker steps have already been performed
+*)
 
 (******************* PARAMETERS ********************)
 
@@ -13,58 +20,57 @@ let speclist =
   ("-output_code_f", Arg.Set_string output_code_f, "output_code_f");
 ]
 
-(************** GENERATE *********************)
+(* assume header is of the form
+(variant other text here ...)
+*)
+let variant_from_header str = 
+  let contents = String.split_on_char ' ' str in
+  int_of_string @@ String.sub (List.hd contents) 1 (String.length @@ List.hd contents) 
+
+
+let read_exps file: exp list * int = 
+  match In_channel.with_open_text file In_channel.input_lines with 
+  | header :: exps -> List.map (fun estr -> exp_of_sexp (Sexplib.Sexp.of_string estr)) exps, variant_from_header header
+  | _ -> raise (Util.Impossible (Format.sprintf "Could not read: %s" file))
+
+let write_exps code_f exp_f es variant =
+  Out_channel.output_string (Out_channel.open_text code_f) "hello"
+  (* TODO: write to both files; add LANG info as a command line argument ...
+  maybe variant should also be a command line argument althrough i dont know how else to return it...
+  maybe you dont need to IG since the python wrapper can track it*)
+
+(************* SHRINK **************)
+
+(* consume up to n elements of the sequence and track how many were consumed *)
+let rec drop_while (seq : 'a Seq.t) (n : int) = 
+  match seq, n with
+  | _, 0 -> seq, n
+  | _ when Seq.is_empty seq -> seq, n
+  | _ -> drop_while (Seq.drop 1 seq) (n-1)
+
+let rec run_local_steps (es : exp list) (variant : int) (steps : (exp -> exp Seq.t) list) : exp list = 
+  match steps with
+  | [] -> raise (Util.Impossible "ran out of local shrinking steps")
+  | step :: rsteps ->
+    let shrinks = local_shrinker_wrapper step es in
+    let shrinks, v = drop_while shrinks variant in
+    match shrinks (), v with
+    | Seq.Nil, 0 -> raise (Util.Impossible "ran out of local shrinking steps")
+    | Seq.Cons (new_es, _), 0 -> new_es 
+    | _, v -> run_local_steps es v rsteps
+
+
+(************** MAIN *********************)
 let () =
   Arg.parse speclist (fun _ -> ())
-    "sized_generator [-n <1>] [-size <10>] [-seed <-1>] [-lang <ml>]";
-  (* TODO: fix the strings above for args parsing *)
+    "sized_generator";
 
-    
+  let init_exps, variant  = read_exps !input_exp_f in
 
-  (* TODO: if a shrinker choice fails, how do we backtrack & make a different choice?? *)
-  (* let rec shrink(curr_exps) = 
-    let new_exps = shrinker curr_exps in () *)
+  let new_exps = 
+    if variant = -1 
+    then Analysis.remove_uncalled_mutuals init_exps (* global shrinker steps *)
+    else
+      run_local_steps init_exps variant [use_base_case] in
 
-
-
-  
-  (* generate initial exp by calling generate (hard coded for now) *)
-  let batch_size = ref(1) in
-  let fuel = ref (10) in
-  let seed = ref (766704) in
-  let lang = ref ("sml") in
-
-  Random.init !seed;  
-
-  let langM = 
-    match !lang with
-    | "ml" -> Gen_ml.ml_ 
-    | "rkt" -> Gen_racket.racket_
-    | "sml" -> Gen_sml.sml_
-    | _ -> raise (Util.Unimplemented "lang not supported") in
-  let get_data_constructors (module L : Language) = L.data_constructors in
-  let get_std_lib (module L : Language) = L.std_lib in
-  let get_printer (module L : Language) = L.printer in
-
-  let steps : generators_t = (Generators.main {std_lib = get_std_lib langM; data_cons = get_data_constructors langM}) in
-  let generate_stlc (fuel : int) : exp list = 
-    Generate.generate_fp 
-      steps
-      fuel (* target type: *)
-      [ nat_func1; nat_func1 ] in
-  let input = "(code 5 9)" in
-  let generate_batch fuel batch_size =
-    Seq.init batch_size
-              (fun _ ->
-                let p = generate_stlc fuel in
-                Debug.run prerr_newline;
-                Debug.run (fun () -> Printf.eprintf "==================");
-                Debug.run prerr_newline;
-                p) in
-  let fs = generate_batch !fuel !batch_size in
-  (* let es = List.hd (List.of_seq fs) in *)
-  print_endline (get_printer langM (List.of_seq fs) input);
-  (* let new_exps = Analysis.shrinker es in
-  print_endline (get_printer langM new_exps input); *)
-
-
+  write_exps !output_code_f !output_exp_f new_exps @@ variant+1

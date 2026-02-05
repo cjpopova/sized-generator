@@ -57,7 +57,7 @@ type exp =
   | Let of (var * exp * exp)
   | ExtRef of string * size_ty (* the size_ty isn't ever used *)
   | Case of exp * size_ty * ((var list * exp) list) (* case e \tau of { (x ... -> e_1) ... } *)
-[@@derivin]
+[@@deriving sexp_of, of_sexp]
 
 and var = {
   var_name : string;
