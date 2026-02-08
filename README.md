@@ -8,6 +8,7 @@ Opam
 ```
 opam init
 opam install dune alcotest ppx_deriving sexplib ppx_sexp_conv
+core async?
 ```
 The minimum OCaml version is 5.1
 
@@ -59,3 +60,12 @@ Sexplib.Sexp.to_string (sexp_of_size_ty Library.nat_func1);;
 - 430: disable production rules not supported by 430's subset of racket & modify racket printing to support etna testing
 - 3027: modify racket printing to use racket/base instead of racket; import racket/match
 - 0 or any other integer: default production rules & printing
+
+
+# Example of using the shrinker
+```
+cd sized_generator; mkdir tmp
+dune exec -- sized_generator -lang=rkt -seed=12345 -size=10 -input="(code 5 9)" > tmp/starter_code.rkt
+dune exec -- sized_generator -lang=rkt -seed=12345 -size=10 -sexp-print > tmp/starter_sexps.txt
+dune exec -- shrinker -input_exp_f tmp/starter_sexps.txt -output_exp_f tmp/next_sexps.txt -output_code_f tmp/next_code.rkt -lang=rkt -input="(code 5 9)" -variant=-1
+```

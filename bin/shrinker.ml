@@ -1,8 +1,8 @@
 open Exp
 open Analysis
+open Library
 (*
-
-variant
+I am using an integer to keep track of the variant produced by shrinking: 
 -1 -> not shrunk
 0 -> remove_uncalled_mutuals done
 1+ -> that many local shrinker steps have already been performed
@@ -13,31 +13,29 @@ variant
 let input_exp_f = ref ("")
 let output_exp_f = ref ("")
 let output_code_f = ref("")
+
+let variant = ref(-1)
+let lang = ref("")
+let input = ref("")
 let speclist =
 [
   ("-input_exp_f", Arg.Set_string input_exp_f, "input_exp_f");
   ("-output_exp_f", Arg.Set_string output_exp_f, "output_exp_f");
   ("-output_code_f", Arg.Set_string output_code_f, "output_code_f");
+  ("-variant", Arg.Set_int variant, "variant");
+  ("-lang", Arg.Set_string lang, "lang");
+  ("-input", Arg.Set_string input, "input");
 ]
 
-(* assume header is of the form
-(variant other text here ...)
-*)
-let variant_from_header str = 
-  let contents = String.split_on_char ' ' str in
-  int_of_string @@ String.sub (List.hd contents) 1 (String.length @@ List.hd contents) 
+let read_exps file: exp list = exps_of_str @@ In_channel.with_open_text file In_channel.input_lines 
 
-
-let read_exps file: exp list * int = 
-  match In_channel.with_open_text file In_channel.input_lines with 
-  | header :: exps -> List.map (fun estr -> exp_of_sexp (Sexplib.Sexp.of_string estr)) exps, variant_from_header header
-  | _ -> raise (Util.Impossible (Format.sprintf "Could not read: %s" file))
-
-let write_exps code_f exp_f es variant =
-  Out_channel.output_string (Out_channel.open_text code_f) "hello"
-  (* TODO: write to both files; add LANG info as a command line argument ...
-  maybe variant should also be a command line argument althrough i dont know how else to return it...
-  maybe you dont need to IG since the python wrapper can track it*)
+let write_exps code_of_exps code_f exp_f es =
+  (* print the sexp*)
+  Out_channel.output_string (Out_channel.open_text exp_f) @@
+    str_of_exps es;
+  (* print the code in chosen language *)
+  Out_channel.output_string (Out_channel.open_text code_f) @@
+    (code_of_exps [es] !input)
 
 (************* SHRINK **************)
 
@@ -65,12 +63,20 @@ let () =
   Arg.parse speclist (fun _ -> ())
     "sized_generator";
 
-  let init_exps, variant  = read_exps !input_exp_f in
+  let langM = 
+    match !lang with
+    | "ml" -> Gen_ml.ml_ 
+    | "rkt" -> Gen_racket.racket_
+    | "sml" -> Gen_sml.sml_
+    | _ -> raise (Util.Unimplemented "lang not supported") in
+  let get_printer (module L : Language) = L.printer in
+
+  let init_exps : exp list = read_exps !input_exp_f in
 
   let new_exps = 
-    if variant = -1 
+    if !variant = -1 
     then Analysis.remove_uncalled_mutuals init_exps (* global shrinker steps *)
     else
-      run_local_steps init_exps variant [use_base_case] in
+      run_local_steps init_exps !variant [use_base_case] in 
 
-  write_exps !output_code_f !output_exp_f new_exps @@ variant+1
+  write_exps (get_printer langM) !output_code_f !output_exp_f new_exps 

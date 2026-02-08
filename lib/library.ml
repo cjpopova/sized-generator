@@ -38,3 +38,9 @@ module type Language = sig
     val std_lib : (string * size_ty) list
     val printer : exp list list -> string -> string
   end;;
+
+(*****************************************)
+(* sexp reading/writing *)
+let exps_of_str str = List.map (fun estr -> exp_of_sexp (Sexplib.Sexp.of_string estr)) str
+
+let str_of_exps es = String.concat "\n" (List.map (fun e -> Sexplib.Sexp.to_string @@ sexp_of_exp e) es)

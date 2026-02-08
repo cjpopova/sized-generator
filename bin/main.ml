@@ -11,6 +11,7 @@ let lang = ref ("ml")
 
 let type_str = ref (Sexplib.Sexp.to_string (sexp_of_size_ty Library.nat_func1))
 let input = ref ("(code 5 9)")
+let sexpPrint = ref (false)
 
 let speclist =
 [
@@ -23,6 +24,7 @@ let speclist =
   ("-input", Arg.Set_string input, "Call to code with inputs");
   ("-debug", Arg.Set Debug.debug_mode, "Enable debug mode");
   ("-disable-size-check", Arg.Clear Debug.check_sizes, "Disable size type checking");
+  ("-sexp-print", Arg.Set sexpPrint, "Override lang printer with sexps");
 ]
 
 (************** GENERATE *********************)
@@ -66,8 +68,11 @@ let () =
                 p) in
   let fs = generate_batch !fuel !batch_size in
   let fs_lst = List.of_seq fs in
-  
-  print_endline (get_printer langM fs_lst !input);
+  let code_str = if !sexpPrint
+    then str_of_exps @@ List.hd fs_lst (* sexp-print the first (exp list) only *)
+    else get_printer langM fs_lst !input in
+  print_endline code_str;
+
 (* 
   Printf.printf "==================\n";
   let shrunk_lst = List.map Analysis.shrinker fs_lst in

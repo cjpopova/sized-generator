@@ -55,11 +55,12 @@ ideas:
 let remove_uncalled_mutuals es : exp list = 
   let counter_lst = analyze_num_mutual_calls es in
   (* print_count_lst counter_lst; *)
-  let filtered_es = List.fold_left2 (fun called_es e { self_calls=_; mutual_calls= mut_calls } ->
-    if mut_calls == 0 then called_es else e::called_es
-  ) [] es counter_lst in
-  if List.is_empty filtered_es then [(List.hd es)] else filtered_es
-
+  match es with 
+  | hd :: rst ->
+    hd :: List.fold_left2 (fun called_es e { self_calls=_; mutual_calls= mut_calls } ->
+      if mut_calls == 0 then called_es else e::called_es
+    ) [] rst (List.tl counter_lst)
+  | _ -> raise (Util.Impossible "remove_uncalled_mutuals called on empty list of expressions")
 
 (* TODO: how do we handle mapping across lists of arguments or clauses??
 and recombining those into a sequence
