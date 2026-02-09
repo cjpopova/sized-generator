@@ -8,6 +8,7 @@ let batch_size = ref 1
 let fuel = ref 5
 let seed = ref (-1)
 let lang = ref ("ml")
+let sexpPrint = ref (false)
 let speclist =
 [
   ("-n", Arg.Set_int batch_size, "Number of tests to generate");
@@ -16,6 +17,7 @@ let speclist =
   ("-lang", Arg.Set_string lang, "Language (ml, sml, rkt)");
   ("-test-type", Arg.Set_int Debug.test_type, "Test type"); (* see README *)
   ("-debug", Arg.Set Debug.debug_mode, "Enable debug mode");
+  ("-sexp-print", Arg.Set sexpPrint, "Override lang printer with sexps");
 ]
 
 (************** GENERATE *********************)
@@ -45,7 +47,7 @@ let () =
     Generate.generate_fp 
       steps
       fuel (* target type: *)
-      [ nat_func2; nat_func2 ]
+      [ nat_func1; nat_func1 ]
   in
   (* Assume `code` is the name of the function to call. Format the function call & inputs appropriately. Examples:
   ((code 100) 42)     rkt : int -> int -> _
@@ -61,5 +63,8 @@ let () =
                 Debug.run prerr_newline;
                 p) in
   let fs = generate_batch !fuel !batch_size in
-  
-  print_endline (get_printer langM fs input);
+
+  let code_str = if !sexpPrint
+      then str_of_exps @@ List.hd (List.of_seq fs) (* sexp-print the first (exp list) only *)
+      else get_printer langM fs input in
+    print_endline code_str;
