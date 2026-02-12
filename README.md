@@ -8,7 +8,6 @@ Opam
 ```
 opam init
 opam install dune alcotest ppx_deriving sexplib ppx_sexp_conv
-core async?
 ```
 The minimum OCaml version is 5.1
 
@@ -32,7 +31,7 @@ or:
 ```
 dune utop lib
 open DebugLibrary;;
-generate_exp_wrapper example hole;;
+generate_exp_wrapper example_hole;;
 ```
 
 # Command line options

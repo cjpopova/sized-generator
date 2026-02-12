@@ -27,6 +27,8 @@ let speclist =
   ("-input", Arg.Set_string input, "input");
 ]
 
+let end_txt = "out of shrinks" (* python driver looks for this string in stderr *)
+
 let read_exps file: exp list = exps_of_str @@ In_channel.with_open_text file In_channel.input_lines 
 
 let write_exps code_of_exps code_f exp_f es =
@@ -48,14 +50,13 @@ let rec drop_while (seq : 'a Seq.t) (n : int) =
 
 let rec run_local_steps (es : exp list) (variant : int) (steps : (exp -> exp Seq.t) list) : exp list = 
   match steps with
-  | [] -> raise (Util.Impossible "ran out of local shrinking steps")
+  | [] -> raise (Util.Impossible end_txt) (* no steps remain *)
   | step :: rsteps ->
     let shrinks = local_shrinker_wrapper step es in
-    let shrinks, v = drop_while shrinks variant in
+    let shrinks, v = drop_while shrinks variant in (* drop shrinks before the requested # *)
     match shrinks (), v with
-    | Seq.Nil, 0 -> raise (Util.Impossible "ran out of local shrinking steps")
-    | Seq.Cons (new_es, _), 0 -> new_es 
-    | _, v -> run_local_steps es v rsteps
+    | Seq.Cons (new_es, _), 0 -> new_es (* we found the requested variant *)
+    | _, v -> run_local_steps es v rsteps (* we have not yet found the variant, and must run more steps *)
 
 
 (************** MAIN *********************)
@@ -77,6 +78,23 @@ let () =
     if !variant = -1 
     then Analysis.remove_uncalled_mutuals init_exps (* global shrinker steps *)
     else
-      run_local_steps init_exps !variant [use_base_case] in 
+      run_local_steps init_exps !variant [use_base_case; drop_let_binding] in
 
-  write_exps (get_printer langM) !output_code_f !output_exp_f new_exps 
+  write_exps (get_printer langM) !output_code_f !output_exp_f new_exps
+
+  (* Debugging*)
+  (* Seq.iteri (fun i es ->
+    write_exps (get_printer langM) !output_code_f (!output_exp_f ^ string_of_int i) es)
+  @@ local_shrinker_wrapper drop_let_binding init_exps *)
+
+  (* Seq.iteri (fun i es ->
+    print_endline @@ string_of_int i;
+    write_exps (get_printer langM) !output_code_f (!output_exp_f ^ string_of_int i) es)
+  @@ local_shrinker_wrapper drop_let_binding init_exps; *)
+
+  (* print_endline (string_of_int @@ Seq.length @@ drop_let_binding @@ List.hd init_exps) *)
+
+  
+(* Seq.iteri (fun i es ->
+  write_exps (get_printer langM) (!output_code_f ^ string_of_int i) (!output_exp_f ^ string_of_int i) [es])
+  @@ drop_let_binding @@ List.hd init_exps *)

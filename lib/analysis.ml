@@ -41,8 +41,8 @@ let print_count_lst (cc : counters list) =
 - [ ] shrink constants to 0
 - [ ] remove match branches
 - [ ] replace let-bindings with constants (eg (let x=e1 in e2) become (let x=1 in e2))
-- [ ] remove unused let binding
-- [~] replace (match e1 with |c1 -> e2 | c2 -> e3) with e2 (should have no free variables)
+- [x] replace let binding with body
+- [x] replace (match e1 with |c1 -> e2 | c2 -> e3) with e2 (should have no free variables)
 
 ideas:
 - look at the timp (typed imp) file in software foundations
@@ -62,13 +62,7 @@ let remove_uncalled_mutuals es : exp list =
     ) [] rst (List.tl counter_lst)
   | _ -> raise (Util.Impossible "remove_uncalled_mutuals called on empty list of expressions")
 
-(* TODO: how do we handle mapping across lists of arguments or clauses??
-and recombining those into a sequence
-
-using list.map produces exp seq.t list
-whereas we want exp seq.t seq.t
-which we can accomplish by turning the underlying list into an seq first
-
+(*how do we handle mapping across lists of arguments or clauses and recombining those into a sequence:
 Lets say we have args=[a;b]
 then for each we have sequences <a',etc> and <b',etc>
 we want to produce <Constructor(a',b); constructor(etc,b)...; Constructor(a,b'); constructor(a,etc)...>
@@ -113,10 +107,42 @@ let use_base_case e : exp Seq.t =
     in
   traverse_ast e
 
-(*  Run a local shrinker step that consumes on expression on a list of expressions to produce all the possible shrinks from the expression list *)
+let drop_let_binding e : exp Seq.t = 
+  let rec traverse_ast (e:exp) : exp Seq.t = 
+    match e with 
+    | Var _ -> List.to_seq [e]
+    | App (func, args) -> 
+      let fs : exp Seq.t = (traverse_ast func) |> Seq.map (fun f' -> App (f', args)) in
+      let args_combine : exp Seq.t Seq.t = Seq.mapi (fun i (seq: exp Seq.t) -> 
+        Seq.map (fun a -> App (func, replace args i a)) seq)
+        (Seq.map traverse_ast (List.to_seq args)) in
+      Seq.append fs @@ Seq.concat args_combine
+    | Letrec (name, params, body) -> 
+      traverse_ast body
+      |> Seq.map (fun body' -> Letrec(name, params, body'))
+    | Let (x, v, let_body) -> 
+      Seq.cons let_body (* don't use @@ to join these lines together*)
+      (traverse_ast let_body
+      |> Seq.map (fun body' -> Let (x, v, body')))
+    | ExtRef _ -> List.to_seq [e]
+    | Case (head, ty, clauses) -> 
+        Seq.concat (
+        Seq.mapi (fun i (binders, e) ->
+          Seq.map (fun e':exp -> 
+            Case (head, ty, replace clauses i (binders, e')))
+            (traverse_ast e))
+        (List.to_seq clauses))
+    in
+  traverse_ast e
+
+(*  Run a local shrinker step that consumes on expression on a list of expressions to produce all the possible shrinks from the expression list
+while filtering out expressions that have no changes *)
 let local_shrinker_wrapper (step: exp -> exp Seq.t) (es : exp list) : exp list Seq.t = 
   Seq.concat
   (Seq.mapi (fun i e -> 
-    Seq.map (fun e' -> replace es i e') 
-    (step e)) 
+    Seq.fold_left (fun acc e' -> 
+      if e <> e' 
+        then Seq.cons (replace es i e') acc
+      else acc) 
+    Seq.empty (step e)) 
     (List.to_seq es))
