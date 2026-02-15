@@ -23,19 +23,8 @@ let std_lib = [
   "560",    tNat Inf;
   "1000000",tNat Inf;
   "10 :: 50 :: []", tList Inf (tNat Inf);
-  (* NOTE: enable following APIs with List.* notation *)
-  (* "head"   ,[tList i tX] --> tX; *)
-  (* "tail"   ,[tList i tX] --> tX;
-  "take"   ,[tList i tX; tNat Inf] --> tList i tX;
-  "list-ref",[tList i tX; tNat Inf] --> tX;
-  "append"  ,[tList i tX; tList Inf tX] --> tList Inf tX; (* size algebra expressivity *)
-  "concat"  ,[tList i (tList Inf tX)] --> tList Inf tX;
-  make-list (1-fuel cost to make large constant size lists) *)
-
-  (* higher order danger zone:
-  map      ,[(tX --> tY), tList i tX] -->  tList i tY;
-  foldr    ,N/A
-  *)
+  "concat"  ,[tList i (tNat Inf); tList Inf (tNat Inf)] --> tList Inf (tNat Inf);
+  "map"     ,[([tNat Inf] --> tNat Inf); tList i (tNat Inf)] -->  tList i (tNat Inf);
   ]
 
 (*************************************************************************************************************************)

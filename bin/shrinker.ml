@@ -1,3 +1,4 @@
+[@@@ocaml.warning "-26-27-32-39"]
 open Exp
 open Analysis
 open Library
@@ -78,23 +79,24 @@ let () =
     if !variant = -1 
     then Analysis.remove_uncalled_mutuals init_exps (* global shrinker steps *)
     else
-      run_local_steps init_exps !variant [use_base_case; drop_let_binding] in
+      run_local_steps init_exps !variant [lambdify_functions; drop_let_binding; constify_let_binding; ] in (* use_base_case; drop_let_binding; constify_let_binding *)
 
   write_exps (get_printer langM) !output_code_f !output_exp_f new_exps
 
   (* Debugging*)
+  (* print the filtered variations to files*)
   (* Seq.iteri (fun i es ->
-    write_exps (get_printer langM) !output_code_f (!output_exp_f ^ string_of_int i) es)
-  @@ local_shrinker_wrapper drop_let_binding init_exps *)
+    write_exps (get_printer langM) (!output_code_f ^ string_of_int i) (!output_exp_f ^ string_of_int i) es)
+  @@ local_shrinker_wrapper lambdify_functions init_exps; *)
 
-  (* Seq.iteri (fun i es ->
-    print_endline @@ string_of_int i;
-    write_exps (get_printer langM) !output_code_f (!output_exp_f ^ string_of_int i) es)
-  @@ local_shrinker_wrapper drop_let_binding init_exps; *)
+  (* print the OG code *)
+  (* Out_channel.output_string (Out_channel.open_text @@ !input_exp_f ^ "code") @@
+    ((get_printer langM) [init_exps] !input) *)
 
+  (* print the first variation of the first exp*)
   (* print_endline (string_of_int @@ Seq.length @@ drop_let_binding @@ List.hd init_exps) *)
 
-  
-(* Seq.iteri (fun i es ->
+  (* print the UNFILTERED variations of the first exp to files*)
+  (* Seq.iteri (fun i es ->
   write_exps (get_printer langM) (!output_code_f ^ string_of_int i) (!output_exp_f ^ string_of_int i) [es])
-  @@ drop_let_binding @@ List.hd init_exps *)
+  @@ lambdify_functions @@ List.hd init_exps *)

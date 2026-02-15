@@ -36,13 +36,14 @@ let print_count_lst (cc : counters list) =
     cc
 
 (* shrinker transformations
-- [x] remove m2 if it is not called by m1
-- [ ] remove (mutual) recursive call & replace with placeholder
+- [x] remove m2 if it is not called by m1 (remove_uncalled_mutuals)
+- [ ] remove (mutual) recursive call & replace with placeholder (not relevant here)
+- [x] replace LetRecs with ID functions (lambdaify)
+- [x] replace let-bindings with constants (eg (let x=e1 in e2) become (let x=1 in e2))
+- [x] replace let binding with body (drop_let_binding)
+- [x] replace (match e1 with |c1 -> e2 | c2 -> e3) with e2 (should have no free variables) (use_base_case)
+- [ ] replace stdlib calls with constants
 - [ ] shrink constants to 0
-- [ ] remove match branches
-- [ ] replace let-bindings with constants (eg (let x=e1 in e2) become (let x=1 in e2))
-- [x] replace let binding with body
-- [x] replace (match e1 with |c1 -> e2 | c2 -> e3) with e2 (should have no free variables)
 
 ideas:
 - look at the timp (typed imp) file in software foundations
@@ -85,13 +86,16 @@ let use_base_case e : exp Seq.t =
       let args_combine : exp Seq.t Seq.t = Seq.mapi (fun i (seq: exp Seq.t) -> 
         Seq.map (fun a -> App (func, replace args i a)) seq)
         (Seq.map traverse_ast (List.to_seq args)) in
-      Seq.append fs @@ Seq.concat args_combine
+      Seq.append fs (Seq.concat args_combine)
     | Letrec (name, params, body) -> 
       traverse_ast body
       |> Seq.map (fun body' -> Letrec(name, params, body'))
     | Let (x, v, let_body) -> 
-      traverse_ast let_body
-      |> Seq.map (fun body' -> Let (x, v, body'))
+      Seq.append 
+      (traverse_ast let_body
+      |> Seq.map (fun body' -> Let (x, v, body')))
+      (traverse_ast v
+      |> Seq.map (fun v' -> Let (x, v', let_body)))
     | ExtRef _ -> List.to_seq [e]
     | Case (head, ty, clauses) -> 
         (match List.hd clauses with
@@ -121,7 +125,38 @@ let drop_let_binding e : exp Seq.t =
       traverse_ast body
       |> Seq.map (fun body' -> Letrec(name, params, body'))
     | Let (x, v, let_body) -> 
-      Seq.cons let_body (* don't use @@ to join these lines together*)
+      Seq.cons let_body
+      (Seq.append 
+      (traverse_ast let_body
+      |> Seq.map (fun body' -> Let (x, v, body')))
+      (traverse_ast v
+      |> Seq.map (fun v' -> Let (x, v', let_body))))
+    | ExtRef _ -> List.to_seq [e]
+    | Case (head, ty, clauses) -> 
+        Seq.concat (
+        Seq.mapi (fun i (binders, e) ->
+          Seq.map (fun e':exp -> 
+            Case (head, ty, replace clauses i (binders, e')))
+            (traverse_ast e))
+        (List.to_seq clauses))
+    in
+  traverse_ast e
+
+let constify_let_binding e : exp Seq.t = 
+  let rec traverse_ast (e:exp) : exp Seq.t = 
+    match e with 
+    | Var _ -> List.to_seq [e]
+    | App (func, args) -> 
+      let fs : exp Seq.t = (traverse_ast func) |> Seq.map (fun f' -> App (f', args)) in
+      let args_combine : exp Seq.t Seq.t = Seq.mapi (fun i (seq: exp Seq.t) -> 
+        Seq.map (fun a -> App (func, replace args i a)) seq)
+        (Seq.map traverse_ast (List.to_seq args)) in
+      Seq.append fs @@ Seq.concat args_combine
+    | Letrec (name, params, body) -> 
+      traverse_ast body
+      |> Seq.map (fun body' -> Letrec(name, params, body'))
+    | Let (x, v, let_body) -> 
+      Seq.cons (Let (x, ExtRef("0", TyCons ("int", [], Inf)),let_body))
       (traverse_ast let_body
       |> Seq.map (fun body' -> Let (x, v, body')))
     | ExtRef _ -> List.to_seq [e]
@@ -134,6 +169,40 @@ let drop_let_binding e : exp Seq.t =
         (List.to_seq clauses))
     in
   traverse_ast e
+
+let lambdify_functions e : exp Seq.t = 
+  let rec traverse_ast (e:exp) : exp Seq.t = 
+    match e with 
+    | Var _ -> 
+      List.to_seq [e]
+    | App (func, args) -> 
+      let fs : exp Seq.t = (traverse_ast func) |> Seq.map (fun f' -> App (f', args)) in
+      let args_combine : exp Seq.t Seq.t = Seq.mapi (fun i (seq: exp Seq.t) -> 
+        Seq.map (fun a -> App (func, replace args i a)) seq)
+        (Seq.map traverse_ast (List.to_seq args)) in
+      Seq.append fs @@ Seq.concat args_combine
+    | Letrec (name, params, body) -> 
+      Seq.cons (Letrec(name, params, Var (List.hd params)))
+      (traverse_ast body
+      |> Seq.map (fun body' -> Letrec(name, params, body')))
+    | Let (x, v, let_body) -> 
+      Seq.append 
+      (traverse_ast let_body
+      |> Seq.map (fun body' -> Let (x, v, body')))
+      (traverse_ast v
+      |> Seq.map (fun v' -> Let (x, v', let_body)))
+    | ExtRef _ -> 
+      List.to_seq [e]
+    | Case (head, ty, clauses) -> 
+        Seq.concat (
+        Seq.mapi (fun i (binders, e) ->
+          Seq.map (fun e':exp -> 
+            Case (head, ty, replace clauses i (binders, e')))
+            (traverse_ast e))
+        (List.to_seq clauses))
+    in
+  traverse_ast e
+
 
 (*  Run a local shrinker step that consumes on expression on a list of expressions to produce all the possible shrinks from the expression list
 while filtering out expressions that have no changes *)
