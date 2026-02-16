@@ -79,7 +79,7 @@ let () =
     if !variant = -1 
     then Analysis.remove_uncalled_mutuals init_exps (* global shrinker steps *)
     else
-      run_local_steps init_exps !variant [lambdify_functions; drop_let_binding; constify_let_binding; ] in (* use_base_case; drop_let_binding; constify_let_binding *)
+      run_local_steps init_exps !variant [drop_let_binding; use_base_case; constify_let_binding; lambdify_functions ] in (* use_base_case; drop_let_binding; constify_let_binding; lambdify_functions *)
 
   write_exps (get_printer langM) !output_code_f !output_exp_f new_exps
 
