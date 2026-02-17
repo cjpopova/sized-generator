@@ -37,7 +37,7 @@ let print_count_lst (cc : counters list) =
 
 (* shrinker transformations
 - [x] remove m2 if it is not called by m1 (remove_uncalled_mutuals)
-- [ ] remove (mutual) recursive call & replace with placeholder (not relevant here)
+- [ ] remove (mutual) recursive call & replace with placeholder 
 - [x] replace LetRecs with ID functions (lambdaify)
 - [x] replace let-bindings with constants (eg (let x=e1 in e2) become (let x=1 in e2))
 - [x] replace let binding with body (drop_let_binding)

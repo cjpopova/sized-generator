@@ -1,3 +1,13 @@
+# shrinker debugging
+```
+dune exec -- shrinker -input_exp_f ../../multistep/original_sexp_2rec.txt -output_exp_f ../../multistep/output_sexp.txt -output_code_f ../../output-code.rkt -lang=rkt -input="(code 5 9)" -variant=-1
+
+dune exec -- shrinker -input_exp_f ../../tmp-shrinker/m66/sexps_after_constify_let_binding.txt -output_exp_f ../../tmp-shrinker/m66/next-sexps.txt -output_code_f ../../tmp-shrinker/m66/next-code.sml -lang=sml -input="(code 5 9)" -variant=-1
+
+
+TODO: add an option to the shrinker print out code from SEXP
+```
+
 # other improvements
 
 I need to rewrite the explanation/rename functions in generators.ml.
