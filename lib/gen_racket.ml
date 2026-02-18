@@ -112,16 +112,13 @@ let rkt_complete_string (fs : exp list Seq.t) (input : string): string =
 
   if !Debug.analyze then List.iter Analysis.print_count_lst analysis_res else ();
 
+  (* #lang line*)
   (match !Debug.test_type with
-    | 430 ->
-    "(define (map f ll)
-      (match ll
-          ['() '()]
-          [(cons code rst) (cons (f code) (map f rst))]))\n"
+    | 430 -> ""
     | 3027 -> "#lang racket/base
     (require racket/match)\n"
     | _ -> "#lang racket\n")
-
+  (* definitions *)
   ^ "(define (nat_min x y)
   (let ([z (- x y)])
     (if (< z 0) 0 z)))\n\n" 
@@ -130,8 +127,13 @@ let rkt_complete_string (fs : exp list Seq.t) (input : string): string =
   ^ "\n(let ([code-list "
   (* (cons m0 (cons m1 ..'()..)) *)
   ^ codelst
-  ^ "])
-  (map (λ (code) " ^input^ ") code-list))"
+  ^ "])\n"
+  (* call the code *)
+  ^ (match  !Debug.test_type with
+    | 430 -> "(match code-list 
+    ['() #f]
+    [(cons code _) "^input^"]))"
+    |_ -> "(map (λ (code) " ^input^ ") code-list))")
 
 let racket_  =
     (module struct

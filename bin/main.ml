@@ -25,6 +25,11 @@ let speclist =
 let () =
   Arg.parse speclist (fun _ -> ())
     "sized_generator [-n <1>] [-size <10>] [-seed <-1>] [-lang <ml>]";
+
+  if !Debug.test_type == 430 && !batch_size > 1
+    then raise (Util.Unimplemented "Test type 430 is only compatible with -n=1")
+    else ();
+
   (if !seed < 0
    then Random.self_init ()
    else Random.init !seed);
