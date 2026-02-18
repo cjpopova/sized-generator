@@ -31,5 +31,5 @@ let analyze_num_mutual_calls (es : exp list) : counters list =
 
 let print_count_lst (cc : counters list) =
   List.iter (fun (c : counters) -> 
-    Printf.eprintf "%d,%d\n" c.self_calls c.mutual_calls) 
+    Printf.eprintf "%d,%d," c.self_calls c.mutual_calls) 
     cc

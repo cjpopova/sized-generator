@@ -21,9 +21,11 @@ let singleton_generator (weight : hole_info -> 'a -> float)
 
 
 let c (w : float) (_ : hole_info) _ = w
-let w_const n = c n
-let w_fuel_base n m (hole : hole_info) _ = Int.to_float hole.fuel *. n +. m
-let w_fuel_depth (hole : hole_info) _ = Int.to_float (max 0 (hole.fuel - hole.depth))
+let w_const n = if !Debug.w_const then c 1.0 else c n
+let w_fuel_base n m (hole : hole_info) _ = 
+  if !Debug.w_const 
+      then min 1.0 (max (Int.to_float hole.fuel) m)
+    else Int.to_float hole.fuel *. n +. m
 
 let w_fuel n = w_fuel_base n 0.
 

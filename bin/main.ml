@@ -19,6 +19,8 @@ let speclist =
   ("-debug", Arg.Set Debug.debug_mode, "Enable debug mode");
   ("-sexp-print", Arg.Set sexpPrint, "Override lang printer with sexps");
   ("-analyze", Arg.Set Debug.analyze, "Print static call count analysis to stderr");
+   ("-disable-size-check", Arg.Clear Debug.check_sizes, "Disable size type checking");
+  ("-w_const", Arg.Set Debug.w_const, "Set all rule weights to (w_const 1)");
 ]
 
 (************** GENERATE *********************)
