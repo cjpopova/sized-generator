@@ -18,6 +18,7 @@ let speclist =
   ("-test-type", Arg.Set_int Debug.test_type, "Test type"); (* see README *)
   ("-debug", Arg.Set Debug.debug_mode, "Enable debug mode");
   ("-sexp-print", Arg.Set sexpPrint, "Override lang printer with sexps");
+  ("-analyze", Arg.Set Debug.analyze, "Print static call count analysis to stderr");
 ]
 
 (************** GENERATE *********************)

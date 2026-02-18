@@ -98,7 +98,7 @@ let var_lst_string (vs : var list) : string = String.concat " " (List.map (fun v
 (******************** top level printer for multiple mutually-recursive expressions ********************)
 
 let rkt_complete_string (fs : exp list Seq.t) (input : string): string =
-  let fundefs, codelst, _ = Seq.fold_left (fun (fundefs, codelst, analysis_lst) es -> 
+  let fundefs, codelst, analysis_res = Seq.fold_left (fun (fundefs, codelst, analysis_lst) es -> 
     fundefs ^ 
     String.concat ""
     (List.map (fun e -> 
@@ -110,7 +110,7 @@ let rkt_complete_string (fs : exp list Seq.t) (input : string): string =
     , Analysis.analyze_num_mutual_calls es :: analysis_lst)
     ("","'()", []) fs in
 
-  (* List.iter Analysis.print_count_lst analysis_res; *)
+  if !Debug.analyze then List.iter Analysis.print_count_lst analysis_res else ();
 
   (match !Debug.test_type with
     | 430 ->
