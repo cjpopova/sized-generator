@@ -19,8 +19,9 @@ let speclist =
   ("-debug", Arg.Set Debug.debug_mode, "Enable debug mode");
   ("-sexp-print", Arg.Set sexpPrint, "Override lang printer with sexps");
   ("-analyze", Arg.Set Debug.analyze, "Print static call count analysis to stderr");
-   ("-disable-size-check", Arg.Clear Debug.check_sizes, "Disable size type checking");
+  ("-disable-size-check", Arg.Clear Debug.check_sizes, "Disable size type checking");
   ("-w_const", Arg.Set Debug.w_const, "Set all rule weights to (w_const 1)");
+  ("-no-recurse", Arg.Set Debug.no_recurse, "Disable recursion");
 ]
 
 (************** GENERATE *********************)
@@ -30,6 +31,10 @@ let () =
 
   if !Debug.test_type == 430 && !batch_size > 1
     then raise (Util.Unimplemented "Test type 430 is only compatible with -n=1")
+    else ();
+  
+  if !Debug.no_recurse && not (!Debug.test_type == 430)
+    then raise (Util.Unimplemented "No-recurse is only compatible with Test type 430")
     else ();
 
   (if !seed < 0

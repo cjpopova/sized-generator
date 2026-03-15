@@ -2,6 +2,7 @@ let check_sizes = ref true
 let test_type = ref 1
 let analyze = ref false
 let w_const = ref false
+let no_recurse = ref false
 
 let debug_mode = ref false
 

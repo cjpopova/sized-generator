@@ -19,7 +19,8 @@ let funrec_step (f : var option) (generate : generate_t) (hole : hole_info)=
       then {(Option.get f) with var_ty=new_ty}
       else Exp.new_var new_ty ~prefix:"f" in
      let xs = List.map (fun t -> Exp.new_var t) ty_params in
-     let body_hole = { hole with ty=ty'; env=f::xs@hole.env; match_head_count=0::List.init (List.length xs) (fun _ -> 0) @ hole.match_head_count } in
+     let new_env = if !Debug.no_recurse then xs else f::xs in (* disable recursion *)
+     let body_hole = { hole with ty=ty'; env=new_env@hole.env; match_head_count=List.init (List.length new_env) (fun _ -> 0) @ hole.match_head_count } in
      Exp.Letrec (f, xs, generate body_hole)
   | _ -> fun () ->
          raise (Util.Impossible "letrec constructor on non-function type")
