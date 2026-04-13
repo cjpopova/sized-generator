@@ -137,10 +137,14 @@ let ml_complete_string (fs : exp list Seq.t) (input : string): string =
     , first_func_name es :: codelst)
     ("",[]) fs in
 
+    let main = if !Debug.test_type == 46
+      then "fun main () =  m1 5 9"
+      else "val code_list = [" ^ String.concat ", " code_list ^ "];;\n"
+    ^ "print(\"[\"^String.concatWith \",\" (map (fn code => Int.toString " ^input^") code_list) ^ \"]\\n\")" in
+
     header ^ "\n\n"
     ^ fundefs ^ "\n\n"
-    ^ "val code_list = [" ^ String.concat ", " code_list ^ "];;\n"
-    ^ "print(\"[\"^String.concatWith \",\" (map (fn code => Int.toString " ^input^") code_list) ^ \"]\\n\")" 
+    ^ main
 
 let sml_  =
     (module struct
