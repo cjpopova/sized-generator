@@ -23,17 +23,22 @@ let std_lib = [
   "(&&)",   [tBool; tBool] --> tBool;
   "(||)",   [tBool; tBool] --> tBool;
   "not",    [tBool] --> tBool;
-  "(==)",   [tX; tX] --> tBool;
+  (* "(==)",   [tX; tX] --> tBool; *)
   "42",     tNat Inf; (* it is useful to have some large constants, because Succ consumes fuel*)
   "560",    tNat Inf;
   "1000000",tNat Inf;
-  "10 :: 50 :: []", tList Inf (tNat Inf);
+  "(10 :: 50 :: [])", tList Inf (tNat Inf);
+  ]
+  @ TypeUtil.monomorphize_library
+  [
   "List.append"  ,[tList i tX; tList Inf tX] --> tList Inf tX;
   "List.concat"  ,[tList i (tList Inf tX)] --> tList Inf tX;
-  "List.map"     ,[([(tNat Inf)] --> tY); tList i (tNat Inf)] -->  tList i tY; (* version only polymorphic in result type *)
-  (* "List.map"     ,[([tX] --> tY); tList i tX] -->  tList i tY; *)
+  "List.map"     ,[([tX] --> tY); tList i tX] -->  tList i tY;
   "List.foldr"   ,[([tX; tY] --> tY); tY; tList i tX] -->  tList i tY;
   ]
+  [tNat Inf; tList i (tNat Inf); tList i (tList Inf (tNat Inf))]
+  ["X"; "Y"]
+
 
 (*************************************************************************************************************************)
 

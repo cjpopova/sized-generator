@@ -150,6 +150,7 @@ let substitution_hat_flip (s : substitution_hat) : substitution_hat =
   { types=s.types; sizes=flip s.sizes } (* NOTE: don't flip types??? i just made a bad data representation *)
 
 (* type level substitution *)
+(* t[x := s] *)
 let rec subst (s : size_ty) (x : string) (t : size_ty) : size_ty =
   match t with
   | TyVar (y, _) -> if x = y then s else t
@@ -307,7 +308,7 @@ let computeT (ty:size_ty) (env:env) =
 let rec lookup_constructors (cons : data_constructors_t) (ty : size_ty) : func_list =
   match cons with
   | [] -> (match ty with
-    | TyCons (name, _, _) -> raise (Util.Impossible (Format.sprintf "lookup_constructors: can't find: %s" name))
+    | TyCons _ -> []
     | TyArrow _ -> []
     | TyVar(name,_)-> raise (Util.Impossible (Format.sprintf "lookup_constructors: called on TyVar: %s" name)))
   | flst :: rst ->
@@ -315,3 +316,32 @@ let rec lookup_constructors (cons : data_constructors_t) (ty : size_ty) : func_l
     | (_, TyArrow(_, _, t)) :: _ ->
       if is_flat_subtype_ty ty t then flst else lookup_constructors rst ty (* 7/29 im going to leave this bc idk how to reprogram it *)
     | _ -> []
+
+(**************************** OTHER HELPERS *****************)
+(* Given a list of polymorphic library functions, 
+monomorphize them by replacing each combination of variables with instantions*)
+
+let rec permutations k lst =
+  if k = 0 then [[]]
+  else
+    List.concat_map (fun x ->
+      let rest = List.filter (fun y -> y <> x) lst in
+      List.map (fun perm -> x :: perm) (permutations (k - 1) rest)
+    ) lst
+
+let zip instantiations variables : ('a * 'b) list list = 
+  List.map (fun perm -> List.combine perm variables) 
+    @@ permutations (List.length variables) instantiations
+
+let monomorphize_library 
+  (lib_funcs : (string * size_ty) list) 
+  (instantiations : size_ty list) 
+  (variables : string list)
+  : (string * size_ty) list= 
+  List.flatten @@
+    List.map (fun env -> 
+      List.map (fun (name, functy) -> 
+        name,
+        List.fold_left (fun acc (i, x) -> subst i x acc) functy env)
+        lib_funcs)
+      (zip instantiations variables)
