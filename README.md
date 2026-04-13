@@ -49,6 +49,7 @@ code [100; 42]      ml : int list -> _
 
 Type: a sexp string of a sized type. This is the best way to get a string for a given type:
 ```
+dune utop lib
 #require "ppx_sexp_conv";;
 open Exp;;
 <build a size_ty, eg Library.nat_func1 >
@@ -58,7 +59,8 @@ Sexplib.Sexp.to_string (sexp_of_size_ty Library.nat_func1);;
 ## Test types
 - 430: disable production rules not supported by 430's subset of racket & modify racket printing to support etna testing
 - 3027: modify racket printing to use racket/base instead of racket; import racket/match
-- 0 or any other integer: default production rules & printing
+- 46: modify printing for SML to be compatible with Ben's scripts
+- Any other integer: default production rules & printing
 
 
 # Example of using the shrinker

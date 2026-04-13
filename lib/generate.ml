@@ -28,17 +28,18 @@ let generate_fp (steps : generators_t) (size : int) (tys : size_ty list) : exp l
       generate_exp (List.map (fun s -> s generate_exp_wrapper) steps) hole
     in
   try
-    (* note: right now, I am hardcoding 2 mutually recursive functions. this should be generalized to as many as necessary, and need a function to get something like the 
+    (* note: right now, I am hardcoding 2 mutually recursive functions. (or 1 under no-recurse)
+    this should be generalized to as many as necessary, and need a function to get something like the 
     powerset or all combinations of elements in the list to populate the environment*)
     match tys with
     | [ty1; ty2] -> (* assume list of types is length 2*)
       let (m1, m2) = (new_var ty1 ~prefix:"m", new_var ty2 ~prefix:"m") in   
       (let hole1 : hole_info = {
         fuel=size+1;
-        env=[{m2 with var_ty = (TypeUtil.unquantify_ty m2.var_ty)}];
+        env=if !Debug.no_recurse then [] else [{m2 with var_ty = (TypeUtil.unquantify_ty m2.var_ty)}];
         depth=0;
         ty=ty1;
-        match_head_count=[0];
+        match_head_count=if !Debug.no_recurse then [] else [0];
       } in
       let hole2 : hole_info = {
         fuel=size+1;
@@ -47,11 +48,10 @@ let generate_fp (steps : generators_t) (size : int) (tys : size_ty list) : exp l
         ty=ty2;
         match_head_count=[0];
       } in
-    [
-      Rules.funrec_step (Some m1) generate_exp_wrapper hole1 () (* force letrec as first rule *) ;
-      Rules.funrec_step (Some m2) generate_exp_wrapper hole2 () (* force letrec as first rule *) ;
-      
-    ])
+    if !Debug.no_recurse 
+      then [ Rules.funrec_step (Some m1) generate_exp_wrapper hole1 (); ]
+      else [ Rules.funrec_step (Some m1) generate_exp_wrapper hole1 (); 
+            Rules.funrec_step (Some m2) generate_exp_wrapper hole2 () ])
   | _ -> raise (Util.Unimplemented (Format.sprintf "Supports exactly 2 mutually recursive functions" ))
   with
     Urn.EmptyUrn msg -> raise (Urn.EmptyUrn msg)

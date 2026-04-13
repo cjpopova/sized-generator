@@ -23,14 +23,26 @@ let speclist =
   ("-type", Arg.Set_string type_str, "Type to generate");
   ("-input", Arg.Set_string input, "Call to code with inputs");
   ("-debug", Arg.Set Debug.debug_mode, "Enable debug mode");
-  ("-disable-size-check", Arg.Clear Debug.check_sizes, "Disable size type checking");
   ("-sexp-print", Arg.Set sexpPrint, "Override lang printer with sexps");
+  ("-analyze", Arg.Set Debug.analyze, "Print static call count analysis to stderr");
+  ("-disable-size-check", Arg.Clear Debug.check_sizes, "Disable size type checking");
+  ("-w_const", Arg.Set Debug.w_const, "Set all rule weights to (w_const 1)");
+  ("-no-recurse", Arg.Set Debug.no_recurse, "Disable recursion");
 ]
 
 (************** GENERATE *********************)
 let () =
   Arg.parse speclist (fun _ -> ())
     "sized_generator [-n <1>] [-size <10>] [-seed <-1>] [-lang <ml>] [-test-type <0>] [-type <...>] [-input \"(code 5 9)\"]";
+
+  if !Debug.test_type == 430 && !batch_size > 1
+    then raise (Util.Unimplemented "Test type 430 is only compatible with -n=1")
+    else ();
+  
+  if !Debug.no_recurse && not (!Debug.test_type == 430)
+    then raise (Util.Unimplemented "No-recurse is only compatible with Test type 430")
+    else ();
+
   (if !seed < 0
    then Random.self_init ()
    else Random.init !seed);

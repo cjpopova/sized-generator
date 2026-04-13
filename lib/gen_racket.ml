@@ -95,7 +95,7 @@ let var_lst_string (vs : var list) : string = String.concat " " (List.map (fun v
 (******************** top level printer for multiple mutually-recursive expressions ********************)
 
 let rkt_complete_string (fs : exp list list) (input : string): string =
-  let fundefs, codelst = List.fold_left (fun (fundefs, codelst) es -> 
+  let fundefs, codelst, analysis_res = List.fold_left (fun (fundefs, codelst, analysis_lst) es -> 
     fundefs ^ 
     String.concat ""
     (List.map (fun e -> 
@@ -103,19 +103,19 @@ let rkt_complete_string (fs : exp list list) (input : string): string =
       | Letrec (func, params, body) -> 
         "(define (" ^ func.var_name ^ " " ^ var_lst_string params ^")\n" ^ rkt_str body ^ ")\n"
       | _ -> raise (Util.Impossible "rkt_complete_string: bad exp given")) es)
-    , "(cons "^first_func_name es^" "^codelst^")")
-    ("","'()") fs in
+    , "(cons "^first_func_name es^" "^codelst^")"
+    , Analysis.analyze_num_mutual_calls es :: analysis_lst)
+    ("","'()", []) fs in
 
+  if !Debug.analyze then List.iter Analysis.print_count_lst analysis_res else ();
+
+  (* #lang line*)
   (match !Debug.test_type with
-    | 430 ->
-    "(define (map f ll)
-      (match ll
-          ['() '()]
-          [(cons code rst) (cons (f code) (map f rst))]))\n"
+    | 430 -> ""
     | 3027 -> "#lang racket/base
     (require racket/match)\n"
     | _ -> "#lang racket\n")
-
+  (* definitions *)
   ^ "(define (nat_min x y)
   (let ([z (- x y)])
     (if (< z 0) 0 z)))\n\n" 
@@ -124,8 +124,13 @@ let rkt_complete_string (fs : exp list list) (input : string): string =
   ^ "\n(let ([code-list "
   (* (cons m0 (cons m1 ..'()..)) *)
   ^ codelst
-  ^ "])
-  (map (λ (code) " ^input^ ") code-list))"
+  ^ "])\n"
+  (* call the code *)
+  ^ (match  !Debug.test_type with
+    | 430 -> "(match code-list 
+    ['() #f]
+    [(cons code _) "^input^"]))"
+    |_ -> "(map (λ (code) " ^input^ ") code-list))")
 
 let racket_  =
     (module struct
