@@ -1,36 +1,28 @@
 open Exp
 open Library
 
-let data_constructors : data_constructors_t = [
-    ["true", [] --> tBool; 
-     "false", [] --> tBool ];
-    ["0", [] --> tNat ihat;
-     "1+", [tNat i] --> tNat ihat]; (* Succ*)
-    ["[]", [] --> tList ihat tX;
-     "(::)", [tX; tList i tX] --> tList ihat tX]
-    ]
+(* Re-use gen_ml's data constuctors and std_lib with some renaming *)
+let data_constructors : data_constructors_t = Gen_ml.data_constructors
 
-let std_lib = [
-  "(+)",    [tNat i; tNat Inf] --> tNat Inf;
-  "nat_min",    [tNat i; tNat Inf] --> tNat i; (* minus*)
-  (* "odd",    [tNat Inf] --> tBool;
-  "even",   [tNat Inf] --> tBool; *)
-  "(&&)",   [tBool; tBool] --> tBool;
-  "(||)",   [tBool; tBool] --> tBool;
-  "not",    [tBool] --> tBool;
-  "(==)",   [tX; tX] --> tBool;
-  "42",     tNat Inf; (* it is useful to have some large constants, because Succ consumes fuel*)
-  "560",    tNat Inf;
-  "1000000",tNat Inf;
-  "10 :: 50 :: []", tList Inf (tNat Inf);
-  "concat"  ,[tList i (tNat Inf); tList Inf (tNat Inf)] --> tList Inf (tNat Inf);
-  "map"     ,[([tNat Inf] --> tNat Inf); tList i (tNat Inf)] -->  tList i (tNat Inf);
-  ]
-
+let std_lib = List.map ( fun (name, ty )->
+  let n_name = match name with
+  | "List.map" -> "map"
+  | "List.fold_left" -> "foldl"
+  | "List.append" -> "(@)"
+  | _ -> name in
+  n_name, ty
+  ) Gen_ml.std_lib
+  
+  
 (*************************************************************************************************************************)
 
 let header : string =  
 "fun nat_min (x : int) (y : int): int = if y >= x then 0 else (x-y);; (* defn of minus for naturals *)
+
+fun string_of_list f ll = (* printer helper for lists*)
+  \"[\"^ (String.concatWith \",\" (map (fn v => f v) ll)) ^\"]\";;
+
+fun println s = print(s ^ \"\\n\");;
 "
 
 (******************* HELPERS *******************)
@@ -93,7 +85,10 @@ let make_infix f = String.sub f 1 (String.length f - 2)
         | [(_, e1); ([h; t], e2)] -> 
           "  [] => " ^ ml_str e1 ^ 
           "\n| " ^ h.var_name ^ "::" ^ t.var_name ^ " => " ^ ml_str e2
-        | _ -> raise (Util.Impossible "match dispatch: List pattern not found"))
+        | _ -> raise (Util.Impossible 
+        (Format.sprintf "match dispatch: List pattern not found on %s" 
+        (String.concat " " (List.map (fun (_, e) -> (show_exp e)) clauses)))
+        ))
       | _ -> (* Normal constructor case *)
         let constructors = TypeUtil.lookup_constructors data_constructors ty in
         (String.concat "| "
@@ -121,15 +116,16 @@ let mutual_recursive_funcs (es : exp list): string =
   ^ ";;\n"
 
 let ml_complete_string (fs : exp list list) (input : string): string = 
-  let fundefs, code_list = List.fold_left (fun (fundefs, codelst) es -> 
+  let fundefs, _ = List.fold_left (fun (fundefs, codelst) es -> 
     fundefs ^ (mutual_recursive_funcs es)
     , first_func_name es :: codelst)
     ("",[]) fs in
 
     let main = if !Debug.test_type == 46
       then "fun main () =  m1 5 9"
-      else "val code_list = [" ^ String.concat ", " code_list ^ "];;\n"
-    ^ "print(\"[\"^String.concatWith \",\" (map (fn code => Int.toString " ^input^") code_list) ^ \"]\\n\")" in
+      else 
+        "println("^input^")" 
+      in
 
     header ^ "\n\n"
     ^ fundefs ^ "\n\n"

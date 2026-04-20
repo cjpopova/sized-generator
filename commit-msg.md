@@ -1,16 +1,5 @@
-# shrinker debugging
-```
-dune exec -- shrinker -input_exp_f ../../multistep/original_sexp_2rec.txt -output_exp_f ../../multistep/output_sexp.txt -output_code_f ../../output-code.rkt -lang=rkt -input="(code 5 9)" -variant=-1
-
-dune exec -- shrinker -input_exp_f ../../tmp-shrinker/m66/sexps_after_constify_let_binding.txt -output_exp_f ../../tmp-shrinker/m66/next-sexps.txt -output_code_f ../../tmp-shrinker/m66/next-code.sml -lang=sml -input="(code 5 9)" -variant=-1
-
-
-TODO: add an option to the shrinker print out code from SEXP
-```
-
 # other improvements
 
-I need to rewrite the explanation/rename functions in generators.ml.
 
 Focusing in on the goal - supporting typical higher-order functions like MAP, FOLD. 
 unsure what to do about curried functions, since during application you'd have to find the first argument
@@ -22,9 +11,7 @@ Anyways, let's try enabling the list functions and seeing what happens.
 
 
 
-# Implement LET_BASE
-- [x] replace Exp.NLetrec with Exp.Let which handles both base and function type let-bindings
-- [ ] see size_subst problem in meeting notes
+
 
 # tracer/profiling notes
 I don't know about racket, but ML has a profiler with function call counts. working backwards:
@@ -38,26 +25,7 @@ ocamlcp m0.ml -P f
 ocamlprof m0.ml
 ```
 
-## analysis planning
-```
-(* 
-assumptions/requirements
-- should work on nonlocal mutual recursion generator, too
-- can probably assume function name prefix on mutuals, which means we might not need to build an environment of them first
 
-planning
-- the exp dump can probably also dump the names of the top-level mutually recursive identifiers for me
-- it would be nice if i can also dump the types of things somewhere so it's easier to debug
-- metric = how many times is X called from Y? how many times is X called from X? how many times do X AND Y call EACH OTHER?
-
-
-what if we just construct a call graph of (var, var, int) list (where int represents the # of times X calls Y) and then 
-  implement a simple algorithm to check if there are edges from A to B and back (and self-edges are also OK)
-
-  https://backtracking.github.io/ocamlgraph/ocamlgraph/Graph/index.html
-  https://anwarmamat.github.io/ocaml/ocamlgraph/
-*)
-```
 
 
 

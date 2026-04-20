@@ -1,6 +1,7 @@
 open Exp
 open Library
 
+(* NOTE: this language file has not been monomorphized & does not share data_cons or std_lib with ML (yet)*)
 
 let tBool = TyCons ("bool", [], ihat) (* technically bools are unsized but this simplifies substitution *)
 let tNat sexp = TyCons ("int", [], sexp)

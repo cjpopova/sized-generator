@@ -22,11 +22,27 @@ let tList sexp ty = TyCons ("list", [ty], sexp)
 
 let nat_func1 = (TyArrow(Q k, [tNat k; tNat Inf], tNat Inf)) (* ∀k. Natk → Nat → Nat*)
 let nat_func2 = (TyArrow(Q k, [tNat k; tNat Inf], tNat k)) (* ∀k. Natk → Nat → Natk*)
+(*
+Racket:   ((code 100) 42)
+SML:      Int.toString (m1 100 42)
+Ocaml:    (code 100 42)
+*)
+
 let nat_func3 = TyArrow (Q k, [tNat k],
                               TyArrow(Q j, [tNat j], tNat Inf)) (* ∀k. Natk → (∀ j. Natj → Nat) *)
 let list_func1 = TyArrow(Q k, [tList k (tNat Inf)], tList k (tNat Inf)) (* ∀k. Listk Nat → Listk Nat*)
+(* N/A *)
 let list_func2 = TyArrow(Q k, [tList k (tNat Inf)], tList Inf (tNat Inf)) (* ∀k. Listk Nat → List Nat*)
 let list_func3 = TyArrow(Q k, [tList k (tNat Inf)], (tNat Inf)) (* ∀k. Listk Nat → Nat*)
+(*
+SML:    string_of_list Int.toString (m1 [5,6])
+OCaml:  (code [[5;6]; [7]])
+*)
+let list_func4 = TyArrow(Q k, [tList k (tList Inf (tNat Inf))], tList Inf (tList Inf (tNat Inf))) (* ∀k. Listk (List Nat) → Listk (List Nat) *)
+(*
+SML:    string_of_list (fn v => string_of_list Int.toString v) (m1 [[5,6], [7]])
+OCaml:  (code [[5;6]; [7]])
+*)
 
 
 

@@ -251,10 +251,24 @@ let test_mono_reachable_producer () =
   ] in
   let expected8 = Some ([tList Inf tX] --> tNat Inf) in
 
+  (* Monomorphic *)
+  let map_listnat = [([(tNat Inf)] --> (tNat Inf)); tList i (tNat Inf)] --> tList i (tNat Inf) in
+
+  let input9 = map_listnat, tList i (tNat Inf), [tList i (tNat Inf)] in
+  let expected9 =  Some ([([(tNat Inf)] --> (tNat Inf)); tList i (tNat Inf)] --> tList i (tNat Inf)) in
+
+(* polymorphic versions of MAP - these are somewhat correct, but we don't need them to be *)
+(* 
   let input9 = [([tX] --> tY); tList i tX] --> tList i tY, tList i (tNat Inf), [ (* map *)
     tList i (tNat Inf)
   ] in
-  let expected9 = Some ([([tX] --> (tNat Inf)); tList i tX] --> tList i (tNat Inf)) in
+  let expected9 = Some ([([(tNat Inf)] --> (tNat Inf)); tList i (tNat Inf)] --> tList i (tNat Inf)) in
+
+  let input10 = [([tX] --> tY); tList i tX] --> tList i tY, tList Inf (tNat Inf), [ (* map *)
+    tList i (tNat Inf)
+  ] in
+  let expected10 = Some ([([(tNat Inf)] --> (tNat Inf)); tList i (tNat Inf)] --> tList Inf (tNat Inf)) in *)
+
 
   let test_list = [
     input0, expected0;

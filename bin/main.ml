@@ -9,8 +9,9 @@ let fuel = ref 5
 let seed = ref (-1)
 let lang = ref ("ml")
 
-let type_str = ref (Sexplib.Sexp.to_string (sexp_of_size_ty Library.nat_func1))
-let input = ref ("(code 5 9)")
+let type_str = ref (Sexplib.Sexp.to_string (sexp_of_size_ty Library.list_func4))
+let input = ref ("string_of_list (fn v => string_of_list Int.toString v) (m1 [[5,6], [7]])")
+(* let input = ref ("(code [[5;6]; [7]])") *)
 let sexpPrint = ref (false)
 
 let speclist =
@@ -34,6 +35,8 @@ let speclist =
 let () =
   Arg.parse speclist (fun _ -> ())
     "sized_generator [-n <1>] [-size <10>] [-seed <-1>] [-lang <ml>] [-test-type <0>] [-type <...>] [-input \"(code 5 9)\"]";
+
+  if !batch_size > 1 then Printf.eprintf("!! Generator may not support batch_size (n) > 1 !!") else ();
 
   if !Debug.test_type == 430 && !batch_size > 1
     then raise (Util.Unimplemented "Test type 430 is only compatible with -n=1")

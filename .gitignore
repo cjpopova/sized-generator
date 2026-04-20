@@ -1,7 +1,7 @@
 _build/
 log/
 output/
-tmp*
+*tmp*
 a.out
 *.o
 *.bak

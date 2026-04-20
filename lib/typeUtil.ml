@@ -252,7 +252,7 @@ and ty_produces (maybe : size_ty) (target : size_ty) (env : env) : size_ty optio
       else None
   | _ -> None
 and reachable (env:env) (t:size_ty) =
-  is_func t ||
+  is_func t || (* if a function's arguments include other arguments, we can always produce those *)
   List.exists 
     (fun {var_ty=var_ty; _} -> is_size_subtype_ty var_ty t || Option.is_some (ty_produces var_ty t env))
     env
@@ -318,7 +318,9 @@ let rec lookup_constructors (cons : data_constructors_t) (ty : size_ty) : func_l
     | _ -> []
 
 (**************************** OTHER HELPERS *****************)
-(* Given a list of polymorphic library functions, 
+(* 
+BROKEN
+Given a list of polymorphic library functions, 
 monomorphize them by replacing each combination of variables with instantions*)
 
 let rec permutations k lst =
@@ -329,6 +331,7 @@ let rec permutations k lst =
       List.map (fun perm -> x :: perm) (permutations (k - 1) rest)
     ) lst
 
+(* this will fail if instantiations is less than the length of variables. it also doesn't allow duplicates from instantiations*)
 let zip instantiations variables : ('a * 'b) list list = 
   List.map (fun perm -> List.combine perm variables) 
     @@ permutations (List.length variables) instantiations
@@ -345,3 +348,17 @@ let monomorphize_library
         List.fold_left (fun acc (i, x) -> subst i x acc) functy env)
         lib_funcs)
       (zip instantiations variables)
+
+(* EXAMPLE CALL*)
+(* TypeUtil.monomorphize_library
+  [
+  "List.append"  ,[tList i tX; tList Inf tX] --> tList Inf tX;
+  "List.concat"  ,[tList i (tList Inf tX)] --> tList Inf tX;
+  "List.map"     ,[([tX] --> tY); tList i tX] -->  tList i tY;
+  "List.foldr"   ,[([tX; tY] --> tY); tY; tList i tX] -->  tList i tY;
+  ]
+  [tNat Inf; 
+     tList i (tNat Inf);
+    (* tList i (tList Inf (tNat Inf)) *)
+    ]
+  ["X"; "Y"];; *)

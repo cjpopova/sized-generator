@@ -37,14 +37,10 @@ generate_exp_wrapper example_hole;;
 # Command line options
 
 ## Lang, type, and input
-These 3 arguments are connected: type is the σ target type to generate; input is how to call a function of that type in that language.
+These 3 arguments are connected: type is the σ target type to generate; input is how to call (and print) a function of that type in that language.
 
-Input: a string of code that calls a function `code` with your arguments in the syntax for the selected language. for example, 
-```
-(code 5 7)          sml or ml: int -> int -> _
-((code 100) 42)     rkt : int -> int -> _
-code [100; 42]      ml : int list -> _
-```
+Input: a string of code that calls a function `code` (or m1, if hardcoded) with your arguments in the syntax for the selected language. If the language is typed, it will also include print functions. 
+Examples of pairs of types/inputs are listed in `lib/library.ml`
 
 
 Type: a sexp string of a sized type. This is the best way to get a string for a given type:

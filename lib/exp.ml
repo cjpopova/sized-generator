@@ -30,8 +30,8 @@ let rec show_unsized_ty ty =
   | TyVar (name, _) -> name
   | TyCons (name, _, _) -> name 
   | TyArrow(_, doms, cod) ->
-     List.fold_right (fun ty acc -> show_unsized_ty ty ^ " -> " ^ acc) doms "" 
-     ^ show_unsized_ty cod
+     "(" ^ List.fold_right (fun ty acc -> show_unsized_ty ty ^ " -> " ^ acc) doms "" 
+     ^ show_unsized_ty cod ^ ")"
 
 let rec show_size_ty ty = 
   match ty with
@@ -39,12 +39,13 @@ let rec show_size_ty ty =
   | TyCons (name, params, sexp) -> name ^ " " ^ show_size_exp sexp ^ 
     if List.is_empty params then "" else " (" ^ show_size_ty (List.hd params) ^ ")"
   | TyArrow(quant, doms, cod) ->
+    "(" ^
      (match quant with 
      | Q e -> "∀"^(show_size_exp e)^"."
      | U _ -> "")
      ^
      List.fold_right (fun ty acc -> show_size_ty ty ^ " -> " ^ acc) doms "" 
-     ^ show_size_ty cod
+     ^ show_size_ty cod ^ ")"
 (* let pp_size_ty fmt ty = Format.fprintf fmt "%s" (show_size_ty ty) *)
 
 (***************************************************************************************************************)

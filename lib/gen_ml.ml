@@ -7,8 +7,7 @@ let data_constructors : data_constructors_t = [
     ["0", [] --> tNat ihat;
      "1+", [tNat i] --> tNat ihat]; (* Succ*)
     
-     (* ["[]", [] --> tList ihat tX; (* polymorphic list *)
-     "(::)", [tX; tList i tX] --> tList ihat tX]; *)
+     (* Monomorphic instantiations *)
     ["[]", [] --> tList ihat (tNat Inf); (* int list  *)
     "(::)", [(tNat Inf); tList i (tNat Inf)] --> tList ihat (tNat Inf)];
     ["[]", [] --> tList ihat (tList Inf (tNat Inf)); (* int list list *)
@@ -28,16 +27,12 @@ let std_lib = [
   "560",    tNat Inf;
   "1000000",tNat Inf;
   "(10 :: 50 :: [])", tList Inf (tNat Inf);
+  "List.append"  ,[tList i (tNat Inf); tList Inf (tNat Inf)] --> tList Inf (tNat Inf);
+  (* "List.concat"  ,[tList i (tList Inf (tNat Inf))] --> tList Inf (tNat Inf); *)
+  "List.map"     ,[([(tNat Inf)] --> (tNat Inf)); tList i (tNat Inf)] -->  tList i (tNat Inf);
+  "List.map"     ,[([tList i (tNat Inf)] --> tList i (tNat Inf)); tList i (tList Inf (tNat Inf))] -->  tList i (tList Inf (tNat Inf));
+  "List.fold_left"   ,[([(tNat Inf); (tNat Inf)] --> (tNat Inf)); (tNat Inf); tList i (tNat Inf)] --> (tNat Inf);
   ]
-  @ TypeUtil.monomorphize_library
-  [
-  "List.append"  ,[tList i tX; tList Inf tX] --> tList Inf tX;
-  "List.concat"  ,[tList i (tList Inf tX)] --> tList Inf tX;
-  "List.map"     ,[([tX] --> tY); tList i tX] -->  tList i tY;
-  "List.foldr"   ,[([tX; tY] --> tY); tY; tList i tX] -->  tList i tY;
-  ]
-  [tNat Inf; tList i (tNat Inf); tList i (tList Inf (tNat Inf))]
-  ["X"; "Y"]
 
 
 (*************************************************************************************************************************)
