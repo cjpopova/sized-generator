@@ -1,5 +1,6 @@
 open Exp
 open Library
+open Gen_ml
 
 (* Re-use gen_ml's data constuctors and std_lib with some renaming *)
 let data_constructors : data_constructors_t = Gen_ml.data_constructors
@@ -24,31 +25,6 @@ fun string_of_list f ll = (* printer helper for lists*)
 
 fun println s = print(s ^ \"\\n\");;
 "
-
-(******************* HELPERS *******************)
-(* string of variable names with space separators*)
-let var_lst_string (vs : var list) : string = String.concat " " (List.map (fun v -> v.var_name) vs)
-
-let rec show_unsized_ty ty = 
-  match ty with
-  | TyVar (name, _) -> name
-  | TyCons (name, [], _) -> name 
-  | TyCons (name, tys, _) -> "(" ^ String.concat ", " (List.map (fun ty -> show_unsized_ty ty) tys) ^ ")" ^ name 
-  | TyArrow(_, doms, cod) ->
-     "(" ^ List.fold_right (fun ty acc -> show_unsized_ty ty ^ " -> " ^ acc) doms "" 
-     ^ show_unsized_ty cod ^ ")"
-
-(* type signature for functions *)
-let type_sig_string (f : var) (params : var list) : string =
-  match f.var_ty with
-  | TyArrow(_, _, cod) ->
-    String.concat " " (List.map (fun v -> "(" ^ v.var_name ^ ":" ^ show_unsized_ty v.var_ty ^ ")") params)
-    ^ " : " ^ show_unsized_ty cod
-  | _ -> raise (Util.Impossible "type_sig_string: not a function type")
-
-let is_infix f = String.equal "(" (String.sub f 0 1)
-
-let make_infix f = String.sub f 1 (String.length f - 2)
 
 (******************** main printer function for single expression ********************)
 

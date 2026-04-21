@@ -10,8 +10,8 @@ let seed = ref (-1)
 let lang = ref ("ml")
 
 let type_str = ref (Sexplib.Sexp.to_string (sexp_of_size_ty Library.list_func4))
-let input = ref ("string_of_list (fn v => string_of_list Int.toString v) (m1 [[5,6], [7]])")
-(* let input = ref ("(code [[5;6]; [7]])") *)
+let input = ref ("(code [[5,9], [6]])")
+
 let sexpPrint = ref (false)
 
 let speclist =
@@ -58,6 +58,7 @@ let () =
     | "ml" -> Gen_ml.ml_ 
     | "rkt" -> Gen_racket.racket_
     | "sml" -> Gen_sml.sml_
+    | "hs" -> Gen_haskell.hs_
     | _ -> raise (Util.Unimplemented "lang not supported") in
   let get_data_constructors (module L : Language) = L.data_constructors in
   let get_std_lib (module L : Language) = L.std_lib in

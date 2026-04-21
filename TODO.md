@@ -1,18 +1,17 @@
 # higher order
-- [ ] now i need to test SML/NJ, because the printout extraction in compare-langs is broken
-
-4/20
-- [ ] we need to parallelize running stuff in ml compilers because they're slow - but this will be a massive pain with writing output to file - we need multiprocessing to take advantage of multiple cores & therefore outputs will be written to separate files (or logs) which we could  join together later
-
-- [ ] also we need to share libraries as much as possible - only printers should be different, and maybe some filtering on libraries to change relevant functions
-
-- [ ] we need a haskell printer
-
-- add higher order
 - [x] remove polymorhpism (populate library with monomorphic vairants of list functions, etc)
 - [ ] encourage closure sharing (something about variables being used more than once)
+- [ ] allow higher-order types to be selected when building arrow types
+- [ ] multary argument generation (see below)
 - [ ] encourage more mutually recursive functions
 - [ ] make large programs
+
+NON TERMINATING GENERATION SEEDS
+569280
+
+# current
+- [ ] fix non termination problem (below)
+- [ ] randomly generate inputs
 
 # feature list
 - [ ] lists
