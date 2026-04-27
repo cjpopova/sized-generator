@@ -10,8 +10,8 @@ let data_constructors : data_constructors_t = [
      (* Monomorphic instantiations *)
     ["[]", [] --> tList ihat (tNat Inf); (* int list  *)
     "(::)", [(tNat Inf); tList i (tNat Inf)] --> tList ihat (tNat Inf)];
-    ["[]", [] --> tList ihat (tList Inf (tNat Inf)); (* int list list *)
-    "(::)", [(tList Inf (tNat Inf)); tList i (tList Inf (tNat Inf))] --> tList ihat (tList Inf (tNat Inf))]
+    (* ["[]", [] --> tList ihat (tList Inf (tNat Inf)); (* int list list *)
+    "(::)", [(tList Inf (tNat Inf)); tList i (tList Inf (tNat Inf))] --> tList ihat (tList Inf (tNat Inf))] *)
     ]
 
 let std_lib = [
@@ -30,7 +30,7 @@ let std_lib = [
   "List.append"  ,[tList i (tNat Inf); tList Inf (tNat Inf)] --> tList Inf (tNat Inf);
   (* "List.concat"  ,[tList i (tList Inf (tNat Inf))] --> tList Inf (tNat Inf); *)
   "List.map"     ,[([(tNat Inf)] --> (tNat Inf)); tList i (tNat Inf)] -->  tList i (tNat Inf);
-  "List.map"     ,[([tList i (tNat Inf)] --> tList i (tNat Inf)); tList i (tList Inf (tNat Inf))] -->  tList i (tList Inf (tNat Inf));
+  (* "List.map"     ,[([tList i (tNat Inf)] --> tList i (tNat Inf)); tList i (tList Inf (tNat Inf))] -->  tList i (tList Inf (tNat Inf)); *)
   "List.fold_left"   ,[([(tNat Inf); (tNat Inf)] --> (tNat Inf)); (tNat Inf); tList i (tNat Inf)] --> (tNat Inf);
   ]
 

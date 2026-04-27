@@ -9,7 +9,7 @@ let fuel = ref 5
 let seed = ref (-1)
 let lang = ref ("ml")
 
-let type_str = ref (Sexplib.Sexp.to_string (sexp_of_size_ty Library.list_func4))
+let type_str = ref (Sexplib.Sexp.to_string (sexp_of_size_ty Library.list_func2))
 let input = ref ("(code [[5,9], [6]])")
 
 let sexpPrint = ref (false)

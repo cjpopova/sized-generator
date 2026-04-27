@@ -85,7 +85,8 @@ type hole_info = {
     ty : size_ty;
     match_head_count : int list
 }
-[@@deriving show]
+let show_hole_info hole = match hole with
+    | {fuel; ty=ty; _} -> Format.sprintf "{hole<%s> Γ ⊢ %s }" (string_of_int fuel) (show_size_ty ty)
 
 type rule_urn = (unit -> exp) Urn.t
 and generate_t = hole_info -> exp
